@@ -32,10 +32,22 @@ the service is reachable and requires OAuth authentication. Supabase's hosted
 MCP flow opens the browser for Supabase sign-in and organization authorization;
 it does not require a personal access token for interactive use.
 
-After restarting Codex, authenticate the Supabase connection if Codex presents
-the OAuth prompt. Then verify access with an MCP read operation such as listing
-projects or tables. The project must be scoped to the ChapterPrep Supabase
-project before write operations are performed.
+The two Supabase plugin mentions can load the bundled Skills, but they do not
+prove that the MCP connection is available in the current chat. A chat is
+verified only when it exposes and successfully executes a read-only MCP
+operation such as `list_projects` or `list_organizations`.
+
+For the next chat, include one Supabase plugin mention and send:
+
+```text
+Use Supabase MCP. Verify the OAuth connection and list my organizations and
+projects. Do not create or modify anything yet.
+```
+
+If no Supabase MCP tool is exposed after starting a new chat, use the ChatGPT
+desktop app or Codex CLI rather than the IDE extension, then connect Supabase
+from the plugin details and start another session. The project must be scoped
+to the ChapterPrep Supabase project before write operations are performed.
 
 ## Project application configuration
 
@@ -56,9 +68,35 @@ committed to Git.
   in the local Codex configuration.
 - Agent Skills: both bundled skill files verified locally.
 - MCP network endpoint: reachable; unauthenticated response is HTTP `401`.
-- Authenticated MCP tool call: pending Codex restart and OAuth authorization.
+- MCP tool exposure in this chat: not verified; no `list_projects`,
+  `list_tables` or `execute_sql` tool is currently available.
+- CLI fallback: not authenticated; `npx supabase projects list` returned
+  `LegacyPlatformAuthRequiredError` because no access token is configured.
 - Supabase project/database access: not claimed until an authenticated MCP
-  query succeeds.
+  query succeeds in a supported Codex session.
+
+## Handoff for a new chat
+
+The repository is ChapterPrep at
+`D:\code\saas\new_chapter_prep`. The frontend and backend foundation are in
+Git. The next safe sequence is:
+
+1. Verify the Supabase MCP connection with a read-only project/organization
+   listing.
+2. Choose or create the Supabase organization and create a project named
+   `ChapterPrep` in a European region close to the users.
+3. Record the project reference and public project URL without committing
+   secrets.
+4. Apply the checked-in initial migration through MCP, run security/performance
+   advisors, and verify the resulting tables and RLS policies.
+5. Configure and deploy the Edge Function, setting `GEMINI_API_KEY` only as a
+   server-side secret.
+6. Generate the publishable frontend configuration and run the application and
+   integration checks.
+
+Do not use a service-role key in the browser, do not claim live behavior before
+the read/write verification succeeds, and do not paste passwords or access
+tokens into chat.
 
 Once access is active, Supabase MCP is the preferred interface for project
 inspection, SQL, migrations, RLS review, Edge Functions, logs and generated

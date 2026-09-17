@@ -4,7 +4,7 @@ Install Node.js and run `npm install`. Use `npm run dev` for the Vite server. Us
 
 ## Supabase setup
 
-1. Authenticate the installed Supabase Codex MCP connection after restarting Codex, then identify and scope the intended Supabase project.
+1. In a supported Codex session, verify and authenticate the installed Supabase MCP connection, then identify and scope the intended Supabase project. A plugin mention alone is not proof that MCP tools are available.
 2. Create a Supabase project if one does not already exist.
 3. Copy `.env.example` to `.env.local` and fill `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
 4. Apply and verify migrations through Supabase MCP, keeping the resulting migration files in Git.
