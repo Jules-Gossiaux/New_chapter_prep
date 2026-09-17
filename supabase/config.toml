@@ -1,0 +1,14 @@
+project_id = "chapterprep"
+
+[api]
+enabled = true
+
+[db]
+major_version = 15
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+
+[functions.extract-vocabulary]
+verify_jwt = true

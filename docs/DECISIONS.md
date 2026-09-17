@@ -10,6 +10,12 @@ The next build phase covers the complete navigable frontend workflow: public ent
 
 Gemini 2.5 Flash is the provisional first extraction provider, subject to backend privacy, quota, quality, and cost validation.
 
+## 2026-09-18 — Supabase backend foundation
+
+Supabase is the selected backend for the first real backend phase because it combines hosted PostgreSQL, Auth, row-level security, migrations, and Edge Functions in one junior-friendly workflow. The browser receives only the publishable key; Gemini credentials belong in Supabase Function secrets. The first backend slice supports email/password Auth, user-owned books and chapters, pasted text only, and a hard 500-word chapter limit.
+
+No usage-plan limits are implemented yet. Provider failures and quota errors have stable error codes and user-safe messages so future free/gold/premium limits can be added without changing the UI contract.
+
 ## Open decisions
 
 - PWA versus native/shared architecture.

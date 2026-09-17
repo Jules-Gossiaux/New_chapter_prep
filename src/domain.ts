@@ -21,6 +21,17 @@ export type Chapter = z.infer<typeof chapterSchema> & {
 };
 export type Store = { books: Book[]; chapters: Chapter[] };
 export const emptyStore: Store = { books: [], chapters: [] };
+export const MAX_CHAPTER_WORDS = 500;
+export function countWords(text: string) {
+  return text.trim() ? text.trim().split(/\s+/).length : 0;
+}
+export function validateChapterWordLimit(text: string) {
+  if (countWords(text) > MAX_CHAPTER_WORDS) {
+    throw new Error(
+      `Chapters are limited to ${MAX_CHAPTER_WORDS} words for now.`,
+    );
+  }
+}
 export function createId() {
   return crypto.randomUUID();
 }
@@ -30,6 +41,7 @@ export function createBook(input: unknown): Book {
 }
 export function createChapter(input: unknown): Chapter {
   const value = chapterSchema.parse(input);
+  validateChapterWordLimit(value.sourceText);
   return {
     ...value,
     id: createId(),

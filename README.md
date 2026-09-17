@@ -15,6 +15,8 @@ The current branch contains the frontend product prototype: a navigable landing/
 
 Authentication, server persistence, live translation, and Gemini extraction are not connected yet. The domain validation, repository, and provider boundaries remain available for the backend phase; no API key is shipped to the browser.
 
+The backend foundation is now scaffolded under `supabase/`: PostgreSQL tables/RLS, email/password Auth wiring, and a server-side Gemini extraction function with a 500-word limit. It requires a Supabase project and secrets before it becomes live.
+
 ## Git workflow
 
 Development happens on `codex/*` branches and is merged into `main` after verification. See [RULES.md](RULES.md) for the strict workflow and [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for local setup.

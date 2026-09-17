@@ -8,6 +8,9 @@ import {
   type DemoBook,
   type View,
 } from './app-model';
+import { countWords, MAX_CHAPTER_WORDS } from './domain';
+import { signIn, signUp } from './lib/auth';
+import { isSupabaseConfigured } from './lib/supabase';
 import './styles.css';
 
 type IconName =
@@ -67,17 +70,20 @@ function Button({
   onClick,
   className = '',
   type = 'button',
+  disabled = false,
 }: {
   children: React.ReactNode;
   variant?: 'primary' | 'outline' | 'ghost' | 'soft';
   onClick?: () => void;
   className?: string;
   type?: 'button' | 'submit';
+  disabled?: boolean;
 }) {
   return (
     <button
       type={type}
       onClick={onClick}
+      disabled={disabled}
       className={`button button-${variant} ${className}`}
     >
       {children}
@@ -306,6 +312,8 @@ function Feature({ title, text }: { title: string; text: string }) {
 
 function Auth({ go }: { go: (view: View) => void }) {
   const [mode, setMode] = useState<'login' | 'signup'>('signup');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   return (
     <div className="auth-page">
       <div className="auth-side">
@@ -365,20 +373,45 @@ function Auth({ go }: { go: (view: View) => void }) {
             </button>
           </div>
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              go('library');
+              setError('');
+              setBusy(true);
+              const form = new FormData(e.currentTarget);
+              try {
+                const action = mode === 'signup' ? signUp : signIn;
+                await action(
+                  String(form.get('email')),
+                  String(form.get('password')),
+                );
+                go('library');
+              } catch (authError) {
+                setError(
+                  authError instanceof Error
+                    ? authError.message
+                    : 'Authentication failed. Please try again.',
+                );
+              } finally {
+                setBusy(false);
+              }
             }}
           >
             <label>
               Email address
-              <input type="email" placeholder="you@example.com" required />
+              <input
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                required
+              />
             </label>
             <label>
               Password
               <input
                 type="password"
+                name="password"
                 placeholder="At least 8 characters"
+                minLength={8}
                 required
               />
             </label>
@@ -390,8 +423,17 @@ function Auth({ go }: { go: (view: View) => void }) {
                 </span>
               </label>
             )}
+            {error && (
+              <p className="form-error" role="alert">
+                {error}
+              </p>
+            )}
             <Button type="submit" className="full-button">
-              {mode === 'signup' ? 'Create my library' : 'Log in'}{' '}
+              {busy
+                ? 'Connecting…'
+                : mode === 'signup'
+                  ? 'Create my library'
+                  : 'Log in'}{' '}
               <Icon name="arrow" />
             </Button>
           </form>
@@ -402,8 +444,9 @@ function Auth({ go }: { go: (view: View) => void }) {
             <span className="google-g">G</span> Continue with Google
           </Button>
           <p className="auth-note">
-            Frontend preview · accounts will be connected during backend
-            integration.
+            {isSupabaseConfigured
+              ? 'Connected to Supabase Auth.'
+              : 'Frontend preview · add Supabase environment variables to enable real accounts.'}
           </p>
         </div>
         <p className="auth-footer">
@@ -945,7 +988,9 @@ function ChapterSetup({
   );
   const [level, setLevel] = useState(book.level);
   const [amount, setAmount] = useState(5);
-  const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const [error, setError] = useState('');
+  const wordCount = countWords(text);
+  const tooLong = wordCount > MAX_CHAPTER_WORDS;
   return (
     <AppShell view="chapter" go={go}>
       <main className="content narrow">
@@ -995,11 +1040,20 @@ function ChapterSetup({
             </label>
             <textarea
               value={text}
-              onChange={(e) => setText(e.target.value)}
+              onChange={(e) => {
+                setText(e.target.value);
+                setError(
+                  countWords(e.target.value) > MAX_CHAPTER_WORDS
+                    ? `Chapters are limited to ${MAX_CHAPTER_WORDS} words for now.`
+                    : '',
+                );
+              }}
               placeholder="Paste your chapter text here..."
             />
             <div className="text-meta">
-              <span>{wordCount} words detected</span>
+              <span className={tooLong ? 'word-limit-error' : ''}>
+                {wordCount} / {MAX_CHAPTER_WORDS} words
+              </span>
               <span>Original text is always preserved</span>
             </div>
           </div>
@@ -1034,11 +1088,19 @@ function ChapterSetup({
               </small>
             </span>
           </div>
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
           <div className="setup-actions">
             <Button variant="outline" onClick={() => go('book')}>
               Save draft
             </Button>
-            <Button onClick={() => onExtract(amount)}>
+            <Button
+              disabled={tooLong || wordCount === 0}
+              onClick={() => onExtract(amount)}
+            >
               Extract vocabulary <Icon name="arrow" />
             </Button>
           </div>

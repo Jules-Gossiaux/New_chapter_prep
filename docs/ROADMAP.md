@@ -1,7 +1,7 @@
 # Roadmap
 
 0. Frontend product prototype — navigable landing/auth/library/book/chapter/extraction/preparation/reader/vocabulary surfaces with mock states and responsive design.
-1. Library and book management — CRUD, confirmation, empty/loading/error states; tests in domain and UI modules.
+1. Connect Supabase Auth and repositories — provision project, apply migrations, replace demo books with user-owned data; integration tests against a test project.
 2. Chapter import and editing — TXT/EPUB fixtures, quality fallback, canonical source tests; `import/`, chapter routes.
 3. Extraction contract and Gemini 2.5 Flash integration — run persistence, schema validation, uncertainty, retry, server-side key handling; `extraction/`.
 4. Suggested vocabulary review — accept/reject/edit/manual add; candidate integration tests.

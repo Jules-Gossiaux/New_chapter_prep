@@ -24,3 +24,9 @@
 - Made every word in the reader clickable, while keeping prepared vocabulary visually highlighted.
 - Added contextual translation panels for prepared words and representative direct-lookup entries.
 - Extended saved-word rendering and CSV export to include words looked up directly in the reader.
+
+## 0.3.0 — Backend foundation
+
+- Added Supabase configuration, environment template, email/password Auth wiring, typed book/chapter repository boundaries, and an extraction invocation boundary.
+- Added the initial PostgreSQL schema with RLS policies for profiles, books, chapters, extraction runs, candidates, vocabulary, and reading progress.
+- Added a server-side Gemini 2.5 Flash Edge Function with authentication checks, JSON output handling, quota errors, and the 500-word chapter limit.
