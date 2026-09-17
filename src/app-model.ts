@@ -2,6 +2,7 @@ export type View =
   | 'landing'
   | 'auth'
   | 'library'
+  | 'newBook'
   | 'book'
   | 'chapter'
   | 'review'
@@ -10,6 +11,7 @@ export type View =
   | 'vocabulary';
 export type Candidate = {
   id: string;
+  bookId: string;
   word: string;
   translation: string;
   partOfSpeech: string;
@@ -38,6 +40,7 @@ export type DemoBook = {
 export const candidates: Candidate[] = [
   {
     id: 'c1',
+    bookId: 'little-prince',
     word: 'discerning',
     translation: 'perspicace',
     partOfSpeech: 'adjective',
@@ -48,6 +51,7 @@ export const candidates: Candidate[] = [
   },
   {
     id: 'c2',
+    bookId: 'little-prince',
     word: 'unsettling',
     translation: 'troublant',
     partOfSpeech: 'adjective',
@@ -58,6 +62,7 @@ export const candidates: Candidate[] = [
   },
   {
     id: 'c3',
+    bookId: 'little-prince',
     word: 'to linger',
     translation: 's’attarder',
     partOfSpeech: 'verb',
@@ -67,6 +72,7 @@ export const candidates: Candidate[] = [
   },
   {
     id: 'c4',
+    bookId: 'little-prince',
     word: 'faintly',
     translation: 'faiblement',
     partOfSpeech: 'adverb',
@@ -76,6 +82,7 @@ export const candidates: Candidate[] = [
   },
   {
     id: 'c5',
+    bookId: 'little-prince',
     word: 'the aftermath',
     translation: 'les conséquences',
     partOfSpeech: 'noun',

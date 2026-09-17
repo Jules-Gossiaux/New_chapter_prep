@@ -419,11 +419,14 @@ function AppShell({
   children,
   view,
   go,
+  savedCount,
 }: {
   children: React.ReactNode;
   view: View;
   go: (view: View) => void;
+  savedCount?: number;
 }) {
+  savedCount = savedCount ?? 4;
   const [open, setOpen] = useState(false);
   const nav = (target: View) => {
     go(target);
@@ -464,6 +467,7 @@ function AppShell({
             icon="bookmark"
             label="Vocabulary"
             active={view === 'vocabulary'}
+            count={savedCount}
             onClick={() => nav('vocabulary')}
           />
         </nav>
@@ -515,18 +519,136 @@ function NavItem({
   icon,
   label,
   active,
+  count,
   onClick,
 }: {
   icon: IconName;
   label: string;
   active?: boolean;
+  count?: number;
   onClick: () => void;
 }) {
   return (
     <button className={`nav-item ${active ? 'active' : ''}`} onClick={onClick}>
       <Icon name={icon} /> {label}
-      {label === 'Vocabulary' && <span className="nav-count">12</span>}
+      {label === 'Vocabulary' && (
+        <span className="nav-count">{count ?? 0}</span>
+      )}
     </button>
+  );
+}
+
+function NewBook({
+  go,
+  onCreate,
+}: {
+  go: (view: View) => void;
+  onCreate: (book: DemoBook) => void;
+}) {
+  const [title, setTitle] = useState('');
+  const [author, setAuthor] = useState('');
+  const [language, setLanguage] = useState('French');
+  const [level, setLevel] = useState('B1');
+  return (
+    <AppShell view="newBook" go={go}>
+      <main className="content narrow new-book-page">
+        <button className="back-link app-back" onClick={() => go('library')}>
+          <Icon name="back" /> Back to library
+        </button>
+        <div className="new-book-layout">
+          <div className="new-book-copy">
+            <span className="kicker">A NEW READING JOURNEY</span>
+            <h1>Give your next book a place to live.</h1>
+            <p>
+              Add the basics now. You can always update them later as your
+              reading takes shape.
+            </p>
+            <div className="new-book-tip">
+              <Icon name="sparkle" />
+              <span>
+                <b>Keep it simple.</b>
+                <small>Your chapter text comes next.</small>
+              </span>
+            </div>
+          </div>
+          <section className="new-book-card">
+            <div className="new-book-card-head">
+              <span className="kicker">BOOK DETAILS</span>
+              <span className="new-book-step">01 / 01</span>
+            </div>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                const book: DemoBook = {
+                  id: `book-${Date.now()}`,
+                  title: title.trim() || 'Untitled book',
+                  author: author.trim() || 'Unknown author',
+                  language,
+                  level,
+                  progress: 0,
+                  cover: 'stranger',
+                  chapters: [],
+                };
+                onCreate(book);
+              }}
+            >
+              <label>
+                Book title
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="e.g. The Little Prince"
+                  required
+                />
+              </label>
+              <label>
+                Author <span className="optional-label">optional</span>
+                <input
+                  value={author}
+                  onChange={(event) => setAuthor(event.target.value)}
+                  placeholder="e.g. Antoine de Saint-Exupéry"
+                />
+              </label>
+              <label>
+                Book language
+                <select
+                  value={language}
+                  onChange={(event) => setLanguage(event.target.value)}
+                >
+                  <option>French</option>
+                  <option>English</option>
+                  <option>Spanish</option>
+                  <option>German</option>
+                  <option>Italian</option>
+                </select>
+              </label>
+              <label>
+                Your current level
+                <select
+                  value={level}
+                  onChange={(event) => setLevel(event.target.value)}
+                >
+                  <option>A1</option>
+                  <option>A2</option>
+                  <option>B1</option>
+                  <option>B2</option>
+                  <option>C1</option>
+                  <option>C2</option>
+                </select>
+              </label>
+              <div className="new-book-actions">
+                <Button variant="outline" onClick={() => go('library')}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Create book <Icon name="arrow" />
+                </Button>
+              </div>
+            </form>
+          </section>
+        </div>
+      </main>
+    </AppShell>
   );
 }
 
@@ -548,7 +670,7 @@ function Library({
             <h1>Good evening, Alex.</h1>
             <p>What story are you stepping into today?</p>
           </div>
-          <Button onClick={() => go('book')}>
+          <Button onClick={() => go('newBook')}>
             <Icon name="plus" /> Add a book
           </Button>
         </div>
@@ -603,7 +725,7 @@ function Library({
                 }}
               />
             ))}
-            <button className="add-book-card" onClick={() => go('book')}>
+            <button className="add-book-card" onClick={() => go('newBook')}>
               <span>
                 <Icon name="plus" />
               </span>
@@ -816,7 +938,7 @@ function ChapterSetup({
 }: {
   book: DemoBook;
   go: (view: View) => void;
-  onExtract: () => void;
+  onExtract: (amount: number) => void;
 }) {
   const [text, setText] = useState(
     'The room was quiet when she arrived. Outside, rain traced thin lines down the window, and the city seemed to be holding its breath.',
@@ -916,7 +1038,7 @@ function ChapterSetup({
             <Button variant="outline" onClick={() => go('book')}>
               Save draft
             </Button>
-            <Button onClick={onExtract}>
+            <Button onClick={() => onExtract(amount)}>
               Extract vocabulary <Icon name="arrow" />
             </Button>
           </div>
@@ -1138,6 +1260,7 @@ function Reader({
         );
         return match ? (
           <button
+            type="button"
             key={`${part}-${index}`}
             className={`word-highlight ${activeWord === match.word ? 'selected' : ''}`}
             onClick={() => setActiveWord(match.word)}
@@ -1149,7 +1272,7 @@ function Reader({
         );
       });
   return (
-    <AppShell view="reader" go={go}>
+    <AppShell view="reader" go={go} savedCount={saved.size}>
       <main className="reader-page">
         <div className="reader-top">
           <button className="back-link" onClick={() => go('book')}>
@@ -1169,7 +1292,7 @@ function Reader({
             <button onClick={() => go('vocabulary')}>
               <Icon name="bookmark" />
             </button>
-            <button onClick={() => exportWords(saved)}>
+            <button onClick={() => exportWords(saved, 'little-prince')}>
               <Icon name="download" />
             </button>
           </div>
@@ -1273,8 +1396,10 @@ function Reader({
     </AppShell>
   );
 }
-function exportWords(saved: Set<string>) {
-  const rows = candidates.filter((c) => saved.has(c.word));
+function exportWords(saved: Set<string>, bookId?: string) {
+  const rows = candidates.filter(
+    (c) => saved.has(c.word) && (!bookId || c.bookId === bookId),
+  );
   const csv = [
     ['Front', 'Back', 'Context'],
     ...rows.map((c) => [c.word, c.translation, c.context]),
@@ -1298,12 +1423,19 @@ function Vocabulary({
   saved: Set<string>;
 }) {
   const [query, setQuery] = useState('');
-  const words = candidates.filter(
+  const [bookFilter, setBookFilter] = useState('little-prince');
+  const [sort, setSort] = useState('newest');
+  const filteredWords = candidates.filter(
     (c) =>
-      saved.has(c.word) && c.word.toLowerCase().includes(query.toLowerCase()),
+      saved.has(c.word) &&
+      (bookFilter === 'all' || c.bookId === bookFilter) &&
+      c.word.toLowerCase().includes(query.toLowerCase()),
+  );
+  const words = [...filteredWords].sort((a, b) =>
+    sort === 'alphabetical' ? a.word.localeCompare(b.word) : 0,
   );
   return (
-    <AppShell view="vocabulary" go={go}>
+    <AppShell view="vocabulary" go={go} savedCount={saved.size}>
       <main className="content narrow">
         <div className="vocabulary-head">
           <div>
@@ -1311,7 +1443,11 @@ function Vocabulary({
             <h1>Vocabulary worth keeping.</h1>
             <p>Words you’ve chosen to carry into your next chapter.</p>
           </div>
-          <Button onClick={() => exportWords(saved)}>
+          <Button
+            onClick={() =>
+              exportWords(saved, bookFilter === 'all' ? undefined : bookFilter)
+            }
+          >
             <Icon name="download" /> Export CSV
           </Button>
         </div>
@@ -1324,12 +1460,26 @@ function Vocabulary({
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <button className="filter-button">
-            All books <Icon name="chevron" />
-          </button>
-          <button className="filter-button">
-            Newest first <Icon name="chevron" />
-          </button>
+          <label className="filter-button filter-select">
+            <select
+              value={bookFilter}
+              onChange={(event) => setBookFilter(event.target.value)}
+            >
+              <option value="little-prince">The Little Prince</option>
+              <option value="all">All books</option>
+            </select>
+            <Icon name="chevron" />
+          </label>
+          <label className="filter-button filter-select">
+            <select
+              value={sort}
+              onChange={(event) => setSort(event.target.value)}
+            >
+              <option value="newest">Newest first</option>
+              <option value="alphabetical">A–Z</option>
+            </select>
+            <Icon name="chevron" />
+          </label>
         </div>
         <section className="vocab-list">
           {words.length ? (
@@ -1370,7 +1520,11 @@ function Vocabulary({
               CSV export is ready for Anki or your own study workflow.
             </small>
           </span>
-          <button onClick={() => exportWords(saved)}>
+          <button
+            onClick={() =>
+              exportWords(saved, bookFilter === 'all' ? undefined : bookFilter)
+            }
+          >
             Export <Icon name="arrow" />
           </button>
         </div>
@@ -1381,12 +1535,13 @@ function Vocabulary({
 
 function App() {
   const [view, setView] = useState<View>('landing');
+  const [books, setBooks] = useState<DemoBook[]>(demoBooks);
   const [selectedBook, setSelectedBook] = useState<DemoBook>(demoBooks[0]);
   const [selected, setSelected] = useState<Set<string>>(
-    new Set(candidates.slice(0, 3).map((c) => c.id)),
+    new Set(candidates.map((c) => c.id)),
   );
   const [saved, setSaved] = useState<Set<string>>(
-    new Set(['discerning', 'unsettling']),
+    new Set(['discerning', 'unsettling', 'to linger', 'faintly']),
   );
   const go = (next: View) => setView(next);
   const toggle = (id: string) =>
@@ -1401,18 +1556,30 @@ function App() {
       next.has(word) ? next.delete(word) : next.add(word);
       return next;
     });
+  const createBook = (book: DemoBook) => {
+    setBooks((old) => [...old, book]);
+    setSelectedBook(book);
+    go('book');
+  };
+  const setExtractionAmount = (amount: number) => {
+    setSelected(
+      new Set(candidates.slice(0, amount).map((candidate) => candidate.id)),
+    );
+    go('review');
+  };
   const page = useMemo(() => {
     if (view === 'landing') return <Landing go={go} />;
     if (view === 'auth') return <Auth go={go} />;
     if (view === 'library')
-      return <Library go={go} books={demoBooks} selectBook={setSelectedBook} />;
+      return <Library go={go} books={books} selectBook={setSelectedBook} />;
+    if (view === 'newBook') return <NewBook go={go} onCreate={createBook} />;
     if (view === 'book') return <BookDetail book={selectedBook} go={go} />;
     if (view === 'chapter')
       return (
         <ChapterSetup
           book={selectedBook}
           go={go}
-          onExtract={() => go('review')}
+          onExtract={setExtractionAmount}
         />
       );
     if (view === 'review')
@@ -1421,7 +1588,7 @@ function App() {
     if (view === 'reader')
       return <Reader go={go} saved={saved} setSaved={saveWord} />;
     return <Vocabulary go={go} saved={saved} />;
-  }, [view, selectedBook, selected, saved]);
+  }, [view, books, selectedBook, selected, saved]);
   return page;
 }
 createRoot(document.getElementById('root')!).render(<App />);

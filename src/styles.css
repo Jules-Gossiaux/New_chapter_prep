@@ -1821,6 +1821,115 @@ textarea::placeholder {
   width: 14px;
   color: var(--coral);
 }
+.new-book-layout {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 70px;
+  align-items: start;
+  max-width: 900px;
+  margin: 28px auto 0;
+}
+.new-book-copy {
+  padding-top: 35px;
+}
+.new-book-copy h1 {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 48px;
+  line-height: 1.05;
+  letter-spacing: -0.06em;
+  margin: 18px 0;
+}
+.new-book-copy > p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+  max-width: 330px;
+}
+.new-book-tip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #eef4ee;
+  color: var(--green);
+  border-radius: 10px;
+  padding: 13px;
+  margin-top: 40px;
+  max-width: 270px;
+}
+.new-book-tip > .icon {
+  width: 17px;
+  color: var(--coral);
+}
+.new-book-tip b,
+.new-book-tip small {
+  display: block;
+}
+.new-book-tip b {
+  font-size: 11px;
+}
+.new-book-tip small {
+  font-size: 10px;
+  color: #819389;
+  margin-top: 3px;
+}
+.new-book-card {
+  background: #fff;
+  border: 1px solid #e1e5de;
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 14px 30px #25483809;
+}
+.new-book-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 17px;
+  margin-bottom: 23px;
+}
+.new-book-step,
+.optional-label {
+  font-size: 10px;
+  color: #9ca8a1;
+  font-weight: 400;
+}
+.new-book-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 10px;
+}
+.filter-select {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+}
+.filter-select select {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  width: 100%;
+  padding: 9px 28px 9px 11px;
+  color: #6d7b74;
+  font-size: 11px;
+  outline: 0;
+}
+.filter-select .icon {
+  position: absolute;
+  right: 9px;
+  pointer-events: none;
+  width: 13px;
+}
+.word-highlight {
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.word-highlight:hover {
+  background: #efb278;
+}
 /* Reader and vocabulary */
 .reader-page {
   padding: 0 44px 70px;
@@ -2673,5 +2782,24 @@ textarea::placeholder {
   }
   .export-note button {
     margin-left: 34px;
+  }
+}
+@media (max-width: 700px) {
+  .new-book-layout {
+    grid-template-columns: 1fr;
+    gap: 25px;
+    margin-top: 0;
+  }
+  .new-book-copy {
+    padding-top: 0;
+  }
+  .new-book-copy h1 {
+    font-size: 39px;
+  }
+  .new-book-tip {
+    margin-top: 25px;
+  }
+  .new-book-card {
+    padding: 19px;
   }
 }
