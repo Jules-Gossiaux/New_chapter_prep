@@ -11,4 +11,10 @@ npm run dev
 
 Checks: `npm run build`, `npm test`, `npm run lint`, and `npm run format:check`.
 
-The foundation currently supports creating books and chapters with localStorage persistence. Extraction is an explicit unavailable adapter until provider, privacy, and cost decisions are confirmed.
+The current branch contains the frontend product prototype: a navigable landing/auth preview, library, book and chapter workflow, extraction review, preparation mode, annotated reader, personal vocabulary list, direct word lookup, and book-scoped CSV export. It uses coherent mock data so the complete UX can be reviewed before backend implementation.
+
+Authentication, server persistence, live translation, and Gemini extraction are not connected yet. The domain validation, repository, and provider boundaries remain available for the backend phase; no API key is shipped to the browser.
+
+## Git workflow
+
+Development happens on `codex/*` branches and is merged into `main` after verification. See [RULES.md](RULES.md) for the strict workflow and [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for local setup.
