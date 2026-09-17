@@ -5,8 +5,10 @@ The app is a React/Vite client with domain-first TypeScript modules:
 - `domain.ts`: validated Book/Chapter models and creation rules.
 - `persistence.ts`: `StoreRepository` and versioned localStorage implementation; future IndexedDB/cloud adapters can implement the same boundary.
 - `extraction.ts`: provider contract isolated from UI; current provider fails safely.
-- `main.tsx`: route/page composition for the initial slice only.
+- `main.tsx`: route/page composition for the frontend prototype and its UI state transitions.
 - `styles.css`: small responsive visual foundation.
+
+The complete frontend prototype intentionally uses `app-model.ts` demo fixtures for reviewable UX. The initial `domain.ts` and `persistence.ts` modules are foundation seams, not yet wired to the prototype screens. The backend phase will replace those fixtures with repositories and provider calls without changing the page contracts.
 
 Source chapter text is canonical and stored on `Chapter`; extraction runs, candidates, accepted chapter vocabulary, global entries, annotations, progress, and exports will be separate entities as those milestones land. Every extraction result must carry source chapter/run/config metadata. Local-first anonymous use is the selected default; account/sync remains an open decision.
 
