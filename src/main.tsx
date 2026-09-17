@@ -1237,6 +1237,94 @@ function Prepare({
   );
 }
 
+type WordDetails = Pick<
+  Candidate,
+  | 'word'
+  | 'translation'
+  | 'partOfSpeech'
+  | 'level'
+  | 'context'
+  | 'confidence'
+  | 'bookId'
+>;
+
+const lookupTranslations: Record<
+  string,
+  { translation: string; partOfSpeech: string }
+> = {
+  room: { translation: 'pièce', partOfSpeech: 'noun' },
+  quiet: { translation: 'calme', partOfSpeech: 'adjective' },
+  arrived: { translation: 'arrivée', partOfSpeech: 'verb' },
+  outside: { translation: 'dehors', partOfSpeech: 'adverb' },
+  rain: { translation: 'pluie', partOfSpeech: 'noun' },
+  window: { translation: 'fenêtre', partOfSpeech: 'noun' },
+  city: { translation: 'ville', partOfSpeech: 'noun' },
+  letter: { translation: 'lettre', partOfSpeech: 'noun' },
+  again: { translation: 'à nouveau', partOfSpeech: 'adverb' },
+  sentence: { translation: 'phrase', partOfSpeech: 'noun' },
+  mind: { translation: 'esprit', partOfSpeech: 'noun' },
+  reader: { translation: 'lecteur / lectrice', partOfSpeech: 'noun' },
+  noticed: { translation: 'remarqué', partOfSpeech: 'verb' },
+  different: { translation: 'différent', partOfSpeech: 'adjective' },
+  tone: { translation: 'ton', partOfSpeech: 'noun' },
+  fear: { translation: 'peur', partOfSpeech: 'noun' },
+  hope: { translation: 'espoir', partOfSpeech: 'noun' },
+  changed: { translation: 'changé', partOfSpeech: 'verb' },
+};
+
+function getWordDetails(word: string): WordDetails {
+  const normalized = word.toLowerCase();
+  const candidate = candidates.find(
+    (item) =>
+      item.word.toLowerCase() === normalized ||
+      item.word.toLowerCase().replace('to ', '') === normalized,
+  );
+  if (candidate) return candidate;
+  const lookup = lookupTranslations[normalized];
+  return {
+    word,
+    translation: lookup?.translation ?? 'Translation will be connected soon',
+    partOfSpeech: lookup?.partOfSpeech ?? 'word',
+    level: '—',
+    context: lookup
+      ? `Selected from the current chapter: “${word}”.`
+      : 'This word is ready for direct lookup. The live translation service will be connected in the backend phase.',
+    confidence: lookup ? 'Medium' : 'Medium',
+    bookId: 'little-prince',
+  };
+}
+
+function tokenizeReaderText(
+  text: string,
+  onWordClick: (word: string) => void,
+  activeWord?: string | null,
+) {
+  return text.split(/(\s+)/).map((token, index) => {
+    if (/^\s+$/.test(token))
+      return <React.Fragment key={`${token}-${index}`}>{token}</React.Fragment>;
+    const match = token.match(
+      /^([^A-Za-zÀ-ÿ0-9]*)([A-Za-zÀ-ÿ0-9'’-]+)([^A-Za-zÀ-ÿ0-9]*)$/,
+    );
+    if (!match)
+      return <React.Fragment key={`${token}-${index}`}>{token}</React.Fragment>;
+    const [, prefix, word, suffix] = match;
+    return (
+      <React.Fragment key={`${token}-${index}`}>
+        <span>{prefix}</span>
+        <button
+          type="button"
+          title={`Translate ${word}`}
+          className={`reader-word ${candidates.some((candidate) => candidate.word.toLowerCase().replace('to ', '') === word.toLowerCase()) ? 'word-highlight' : ''} ${activeWord?.toLowerCase() === word.toLowerCase() ? 'selected' : ''}`}
+          onClick={() => onWordClick(word)}
+        >
+          {word}
+        </button>
+        <span>{suffix}</span>
+      </React.Fragment>
+    );
+  });
+}
+
 function Reader({
   go,
   saved,
@@ -1248,29 +1336,7 @@ function Reader({
 }) {
   const [activeWord, setActiveWord] = useState<string | null>(null);
   const [fontSize, setFontSize] = useState(20);
-  const active = candidates.find((c) => c.word === activeWord);
-  const renderText = (text: string) =>
-    text
-      .split(/(discerning|unsettling|linger|faintly|aftermath)/gi)
-      .map((part, index) => {
-        const match = candidates.find(
-          (c) =>
-            c.word.toLowerCase() === part.toLowerCase() ||
-            c.word.toLowerCase().replace('to ', '') === part.toLowerCase(),
-        );
-        return match ? (
-          <button
-            type="button"
-            key={`${part}-${index}`}
-            className={`word-highlight ${activeWord === match.word ? 'selected' : ''}`}
-            onClick={() => setActiveWord(match.word)}
-          >
-            {part}
-          </button>
-        ) : (
-          <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>
-        );
-      });
+  const active = activeWord ? getWordDetails(activeWord) : null;
   return (
     <AppShell view="reader" go={go} savedCount={saved.size}>
       <main className="reader-page">
@@ -1306,7 +1372,9 @@ function Reader({
             <h2>The Asteroid</h2>
             <div className="reading-copy" style={{ fontSize: `${fontSize}px` }}>
               {readerParagraphs.map((paragraph) => (
-                <p key={paragraph}>{renderText(paragraph)}</p>
+                <p key={paragraph}>
+                  {tokenizeReaderText(paragraph, setActiveWord, activeWord)}
+                </p>
               ))}
             </div>
             <div className="reader-end">
@@ -1371,19 +1439,20 @@ function Reader({
                   View all <Icon name="arrow" />
                 </button>
               </div>
-              {candidates
-                .filter((c) => saved.has(c.word))
-                .map((word) => (
+              {Array.from(saved).map((word) => {
+                const details = getWordDetails(word);
+                return (
                   <button
                     className="mini-word"
-                    key={word.id}
-                    onClick={() => setActiveWord(word.word)}
+                    key={word}
+                    onClick={() => setActiveWord(word)}
                   >
-                    <b>{word.word}</b>
+                    <b>{word}</b>
                     <span>→</span>
-                    <small>{word.translation}</small>
+                    <small>{details.translation}</small>
                   </button>
-                ))}
+                );
+              })}
               {saved.size === 0 && (
                 <p className="aside-empty">
                   Your saved words will appear here.
@@ -1397,9 +1466,9 @@ function Reader({
   );
 }
 function exportWords(saved: Set<string>, bookId?: string) {
-  const rows = candidates.filter(
-    (c) => saved.has(c.word) && (!bookId || c.bookId === bookId),
-  );
+  const rows = Array.from(saved)
+    .map(getWordDetails)
+    .filter((word) => !bookId || word.bookId === bookId);
   const csv = [
     ['Front', 'Back', 'Context'],
     ...rows.map((c) => [c.word, c.translation, c.context]),
@@ -1425,12 +1494,13 @@ function Vocabulary({
   const [query, setQuery] = useState('');
   const [bookFilter, setBookFilter] = useState('little-prince');
   const [sort, setSort] = useState('newest');
-  const filteredWords = candidates.filter(
-    (c) =>
-      saved.has(c.word) &&
-      (bookFilter === 'all' || c.bookId === bookFilter) &&
-      c.word.toLowerCase().includes(query.toLowerCase()),
-  );
+  const filteredWords = Array.from(saved)
+    .map(getWordDetails)
+    .filter(
+      (word) =>
+        (bookFilter === 'all' || word.bookId === bookFilter) &&
+        word.word.toLowerCase().includes(query.toLowerCase()),
+    );
   const words = [...filteredWords].sort((a, b) =>
     sort === 'alphabetical' ? a.word.localeCompare(b.word) : 0,
   );
@@ -1484,7 +1554,7 @@ function Vocabulary({
         <section className="vocab-list">
           {words.length ? (
             words.map((word) => (
-              <article className="vocab-card" key={word.id}>
+              <article className="vocab-card" key={word.word}>
                 <span className="vocab-letter">
                   {word.word[0].toUpperCase()}
                 </span>

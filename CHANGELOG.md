@@ -18,3 +18,9 @@
 - Made highlighted reader words explicitly clickable and connected to contextual translation panels.
 - Added functional book/sort filters and scoped vocabulary CSV export.
 - Connected the extraction word-count control to the number of selected suggestions.
+
+## 0.2.2 — Direct reader lookup
+
+- Made every word in the reader clickable, while keeping prepared vocabulary visually highlighted.
+- Added contextual translation panels for prepared words and representative direct-lookup entries.
+- Extended saved-word rendering and CSV export to include words looked up directly in the reader.
