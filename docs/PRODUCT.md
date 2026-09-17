@@ -8,6 +8,10 @@ The next frontend milestone is a complete navigable product prototype with these
 
 The planned extraction provider for the first backend integration is Gemini 2.5 Flash. Its API key must never be shipped to the browser; the frontend will call an application endpoint/provider boundary once the backend phase begins.
 
+## Frontend prototype behavior
+
+The prototype uses three coherent sample books and representative candidate words so the full journey can be evaluated without a server. The auth form creates a simulated local session. Chapter extraction transitions to representative AI suggestions. Candidate selection leads to preparation, then the reader supports selected-word contextual panels, save/remove behavior, font-size controls, and CSV download.
+
 ## Boundaries
 
 Pasted text is first-class. In the frontend-only phase, TXT/EPUB/PDF parsing, real AI extraction, accounts, synchronization, and durable server persistence are represented as contracts or mocks. The UI must still preserve the original chapter text, allow review of suggestions, support the reader workflow, and make all unavailable behavior explicit.
