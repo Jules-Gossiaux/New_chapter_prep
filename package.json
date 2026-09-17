@@ -1,0 +1,37 @@
+{
+  "name": "chapterprep",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "react": "latest",
+    "react-dom": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "latest",
+    "@testing-library/react": "latest",
+    "@testing-library/user-event": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@typescript-eslint/eslint-plugin": "latest",
+    "@typescript-eslint/parser": "latest",
+    "@vitejs/plugin-react": "latest",
+    "eslint": "latest",
+    "eslint-plugin-react-hooks": "latest",
+    "jsdom": "latest",
+    "prettier": "latest",
+    "typescript": "latest",
+    "vite": "latest",
+    "vitest": "latest"
+  }
+}
