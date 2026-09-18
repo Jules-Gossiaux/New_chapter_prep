@@ -14,11 +14,11 @@ const json = (body: unknown, status = 200) =>
 const MAX_CHAPTER_WORDS = 50_000;
 const MAX_REQUESTED_WORDS = 50;
 const levelFrequencyCutoffs: Record<string, number> = {
-  A1: 800,
+  A1: 300,
   A2: 1500,
-  B1: 3000,
-  B2: 5000,
-  C1: 8000,
+  B1: 2500,
+  B2: 3500,
+  C1: 7000,
   C2: 10000,
 };
 

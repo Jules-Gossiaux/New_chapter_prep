@@ -6,7 +6,7 @@ ChapterPrep supports English and French in this phase. The browser never downloa
 
 The `vocabulary_frequency` table holds the first 10,000 distinct normalized forms for each supported language. It is populated from the word-frequency CSVs in [orgtre/top-open-subtitles-sentences](https://github.com/orgtre/top-open-subtitles-sentences), based on OpenSubtitles2018. The source repository documents its data limitations: subtitles often contain translations and names, so Gemini is allowed to discard malformed tokens and proper names.
 
-The extraction function uses fixed initial frequency cutoffs: A1 800, A2 1,500, B1 3,000, B2 5,000, C1 8,000, and C2 10,000. It keeps only words occurring in the chapter above the learner's cutoff, ranks the closest words first, and applies the 1–50 maximum selected in the UI. This is a starting estimate, not a claim that CEFR defines exact vocabulary totals.
+The extraction function uses fixed initial frequency cutoffs: A1 300, A2 1,500, B1 2,500, B2 3,500, C1 7,000, and C2 10,000. It keeps only words occurring in the chapter strictly above the learner's cutoff, ranks the closest words first, and applies the 1–50 maximum selected in the UI. For example, an A1 chapter selects eligible words starting just above rank 300, then continues upward by frequency rank. This is a starting estimate, not a claim that CEFR defines exact vocabulary totals.
 
 ## Long chapters
 
