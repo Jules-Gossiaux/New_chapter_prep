@@ -340,7 +340,7 @@ Deno.serve(async (request) => {
       })),
     )}`;
     const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' +
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=' +
         encodeURIComponent(apiKey),
       {
         method: 'POST',
@@ -484,7 +484,7 @@ Deno.serve(async (request) => {
     ]);
     return json({
       provider: 'gemini',
-      model: 'gemini-3.6-flash',
+      model: 'gemini-3.5-flash-lite',
       inputWordCount,
       eligibleCount,
       items: (savedItems ?? []).map((item) => ({

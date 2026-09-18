@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.2 — Available Gemini model
+
+- Switched vocabulary enrichment to `gemini-3.5-flash-lite` after verifying it responds for the configured API key while `gemini-3.6-flash` returned a temporary high-demand response.
+
 ## 0.4.1 — Extraction recovery
 
 - Updated the Gemini model from retired `gemini-2.5-flash` to `gemini-3.6-flash` after the provider returned a 404.
