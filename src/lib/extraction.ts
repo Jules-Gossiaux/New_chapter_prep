@@ -1,14 +1,15 @@
 import { supabase } from './supabase';
 
 export type ExtractionRequest = {
-  sourceText: string;
-  targetLanguage: string;
-  learnerLevel: string;
+  chapterId: string;
   requestedCount: number;
 };
 export type ExtractionErrorCode =
   | 'AUTH_REQUIRED'
   | 'CHAPTER_TOO_LONG'
+  | 'INVALID_COUNT'
+  | 'UNSUPPORTED_LANGUAGE'
+  | 'NO_ELIGIBLE_VOCABULARY'
   | 'AI_QUOTA_EXCEEDED'
   | 'AI_NOT_CONFIGURED'
   | 'AI_PROVIDER_ERROR'
@@ -36,6 +37,17 @@ export async function extractVocabulary(input: ExtractionRequest) {
     provider: string;
     model: string;
     inputWordCount: number;
-    items: unknown[];
+    eligibleCount: number;
+    items: Array<{
+      id: string;
+      word: string;
+      lemma: string | null;
+      translation: string;
+      partOfSpeech: string;
+      level: string;
+      context: string;
+      confidence: 'High' | 'Medium';
+      frequencyRank: number;
+    }>;
   };
 }

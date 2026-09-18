@@ -25,6 +25,7 @@ export type ChapterPreview = {
   title: string;
   words: number;
   status: 'Ready' | 'Not started' | 'In progress';
+  sourceText?: string;
 };
 export type DemoBook = {
   id: string;

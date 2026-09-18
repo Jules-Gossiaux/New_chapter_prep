@@ -25,21 +25,44 @@ function requireClient() {
   return supabase;
 }
 
-export async function listBooks() {
+function mapBook(book: Record<string, unknown>): BackendBook {
+  return {
+    id: String(book.id),
+    title: String(book.title),
+    author: String(book.author ?? ''),
+    targetLanguage: String(book.target_language),
+    learnerLevel: String(book.learner_level),
+    createdAt: String(book.created_at),
+  };
+}
+
+function mapChapter(chapter: Record<string, unknown>): BackendChapter {
+  return {
+    id: String(chapter.id),
+    bookId: String(chapter.book_id),
+    number: Number(chapter.chapter_number),
+    title: String(chapter.title),
+    sourceText: String(chapter.source_text),
+    wordCount: Number(chapter.word_count),
+    extractionStatus: String(chapter.extraction_status),
+  };
+}
+
+async function requireUser() {
   const client = requireClient();
+  const { data: userData } = await client.auth.getUser();
+  if (!userData.user) throw new Error('AUTH_REQUIRED');
+  return { client, user: userData.user };
+}
+
+export async function listBooks() {
+  const { client } = await requireUser();
   const { data, error } = await client
     .from('books')
     .select('*')
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return (data ?? []).map((book) => ({
-    id: book.id,
-    title: book.title,
-    author: book.author,
-    targetLanguage: book.target_language,
-    learnerLevel: book.learner_level,
-    createdAt: book.created_at,
-  })) as BackendBook[];
+  return (data ?? []).map((book) => mapBook(book));
 }
 
 export async function createBackendBook(input: {
@@ -48,11 +71,7 @@ export async function createBackendBook(input: {
   targetLanguage: string;
   learnerLevel?: string;
 }) {
-  const client = requireClient();
-  const {
-    data: { user },
-  } = await client.auth.getUser();
-  if (!user) throw new Error('AUTH_REQUIRED');
+  const { client, user } = await requireUser();
   const { data, error } = await client
     .from('books')
     .insert({
@@ -65,7 +84,18 @@ export async function createBackendBook(input: {
     .select()
     .single();
   if (error) throw error;
-  return data as BackendBook;
+  return mapBook(data);
+}
+
+export async function listBackendChapters(bookId: string) {
+  const { client } = await requireUser();
+  const { data, error } = await client
+    .from('chapters')
+    .select('*')
+    .eq('book_id', bookId)
+    .order('chapter_number', { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((chapter) => mapChapter(chapter));
 }
 
 export async function createBackendChapter(input: {
@@ -74,7 +104,7 @@ export async function createBackendChapter(input: {
   title: string;
   sourceText: string;
 }) {
-  const client = requireClient();
+  const { client } = await requireUser();
   validateChapterWordLimit(input.sourceText);
   const { data, error } = await client
     .from('chapters')
@@ -88,5 +118,5 @@ export async function createBackendChapter(input: {
     .select()
     .single();
   if (error) throw error;
-  return data as BackendChapter;
+  return mapChapter(data);
 }

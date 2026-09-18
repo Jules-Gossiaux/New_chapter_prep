@@ -47,6 +47,13 @@ create table public.reading_progress (
   position integer not null default 0 check (position >= 0), completed boolean not null default false, updated_at timestamptz not null default now()
 );
 
+create index books_user_id_idx on public.books(user_id);
+create index chapters_book_id_idx on public.chapters(book_id);
+create index extraction_runs_chapter_id_idx on public.extraction_runs(chapter_id);
+create index vocabulary_candidates_extraction_run_id_idx on public.vocabulary_candidates(extraction_run_id);
+create index chapter_vocabulary_vocabulary_entry_id_idx on public.chapter_vocabulary(vocabulary_entry_id);
+create index reading_progress_user_id_idx on public.reading_progress(user_id);
+
 alter table public.profiles enable row level security;
 alter table public.books enable row level security;
 alter table public.chapters enable row level security;

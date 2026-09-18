@@ -4,14 +4,15 @@ Install Node.js and run `npm install`. Use `npm run dev` for the Vite server. Us
 
 ## Supabase setup
 
-1. In a supported Codex session, verify and authenticate the installed Supabase MCP connection, then identify and scope the intended Supabase project. A plugin mention alone is not proof that MCP tools are available.
-2. Create a Supabase project if one does not already exist.
-3. Copy `.env.example` to `.env.local` and fill `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
-4. Apply and verify migrations through Supabase MCP, keeping the resulting migration files in Git.
-5. Set `GEMINI_API_KEY` as an Edge Function secret; never put it in `.env.local` or frontend code.
-6. Deploy `supabase/functions/extract-vocabulary` when the project is ready.
+1. The hosted project `New_chapter_prep` (`auubivhhifkasnlsmine`, `eu-west-1`) is active and reachable through Supabase MCP.
+2. The initial schema, RLS hardening, trigger permission, and vocabulary-extraction migrations are applied. Verify changes through Supabase MCP before adding another migration.
+3. `.env.local` is local-only and contains `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Restart Vite after changing either value.
+4. Email/password Auth and book/chapter persistence are live when the user is signed in. A new account has an empty library until it creates a book.
+5. Set `GEMINI_API_KEY` as an Edge Function secret; never put it in `.env.local` or frontend code. The dashboard path is Project Settings → Edge Functions → Secrets.
+6. `vocabulary_frequency` is server-only and currently contains the top 10,000 source entries for English and French from `orgtre/top-open-subtitles-sentences`. RLS intentionally grants no browser read policy.
+7. Deploy `supabase/functions/extract-vocabulary` after the secret is configured and test it using an authenticated account.
 
-The checked-in migration and function are implementation foundations and have not been deployed against a live Supabase project yet. Do not claim live backend behavior until an authenticated MCP query and a representative deployment check succeed.
+The schema and Auth-backed book/chapter path are live. The Edge Function is deployed separately from the frontend build; it remains unavailable until `GEMINI_API_KEY` is configured and an authenticated extraction has been verified.
 
 ## Git handoff
 

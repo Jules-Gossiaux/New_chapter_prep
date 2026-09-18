@@ -20,7 +20,7 @@ describe('domain validation', () => {
         sourceText: 'Exact  source\ntext.',
       }).sourceText,
     ).toBe('Exact  source\ntext.'));
-  it('rejects chapters over the temporary 500 word limit', () =>
+  it('rejects chapters over the import safety limit', () =>
     expect(() =>
       createChapter({
         bookId: 'b',
@@ -30,5 +30,5 @@ describe('domain validation', () => {
           .fill('word')
           .join(' '),
       }),
-    ).toThrow('500 words'));
+    ).toThrow('50'));
 });

@@ -64,16 +64,22 @@ committed to Git.
 
 ## Verification state
 
-- Official Supabase plugin: installed locally and manifest verified; enabled
-  in the local Codex configuration.
-- Agent Skills: both bundled skill files verified locally.
-- MCP network endpoint: reachable; unauthenticated response is HTTP `401`.
-- MCP tool exposure in this chat: not verified; no `list_projects`,
-  `list_tables` or `execute_sql` tool is currently available.
-- CLI fallback: not authenticated; `npx supabase projects list` returned
-  `LegacyPlatformAuthRequiredError` because no access token is configured.
-- Supabase project/database access: not claimed until an authenticated MCP
-  query succeeds in a supported Codex session.
+- Official Supabase plugin and Agent Skills: available in this session.
+- Supabase MCP: authenticated and verified through project, table, migration,
+  advisor, and SQL read operations.
+- Hosted project: `New_chapter_prep` (`auubivhhifkasnlsmine`) in `eu-west-1`,
+  status `ACTIVE_HEALTHY`.
+- Schema: nine `public` tables exist, all with RLS enabled. The server-only
+  `vocabulary_frequency` table holds 19,969 distinct English/French forms
+  derived from the first 10,000 ranks of the OpenSubtitles source lists.
+- Migrations: `initial_schema`, `harden_rls`, `revoke_trigger_execute`,
+  `vocabulary_extraction`, and `vocabulary_frequency_access_policy` are
+  applied.
+- Security advisor: the reference table has an explicit browser deny policy.
+  The remaining Auth recommendation is to enable leaked-password protection
+  in the Supabase dashboard.
+- Edge Functions: `extract-vocabulary` is deployed and requires a configured
+  server-side `GEMINI_API_KEY` before live enrichment can succeed.
 
 ## Handoff for a new chat
 
@@ -81,18 +87,12 @@ The repository is ChapterPrep at
 `D:\code\saas\new_chapter_prep`. The frontend and backend foundation are in
 Git. The next safe sequence is:
 
-1. Verify the Supabase MCP connection with a read-only project/organization
-   listing.
-2. Choose or create the Supabase organization and create a project named
-   `ChapterPrep` in a European region close to the users.
-3. Record the project reference and public project URL without committing
-   secrets.
-4. Apply the checked-in initial migration through MCP, run security/performance
-   advisors, and verify the resulting tables and RLS policies.
-5. Configure and deploy the Edge Function, setting `GEMINI_API_KEY` only as a
-   server-side secret.
-6. Generate the publishable frontend configuration and run the application and
-   integration checks.
+1. Configure `GEMINI_API_KEY` in the hosted Edge Function secret store.
+2. Test `extract-vocabulary` with an authenticated account and a non-sensitive
+   English or French chapter.
+3. Persist reviewed candidates into personal vocabulary entries.
+4. Generate TypeScript database types and add integration coverage for the
+   authenticated book/chapter path.
 
 Do not use a service-role key in the browser, do not claim live behavior before
 the read/write verification succeeds, and do not paste passwords or access

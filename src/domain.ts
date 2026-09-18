@@ -21,14 +21,19 @@ export type Chapter = z.infer<typeof chapterSchema> & {
 };
 export type Store = { books: Book[]; chapters: Chapter[] };
 export const emptyStore: Store = { books: [], chapters: [] };
-export const MAX_CHAPTER_WORDS = 500;
+/**
+ * The chapter is analysed deterministically before Gemini sees only selected
+ * word contexts. This generous guard prevents accidental oversized imports
+ * without imposing the former AI-context limit on readers.
+ */
+export const MAX_CHAPTER_WORDS = 50_000;
 export function countWords(text: string) {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
 }
 export function validateChapterWordLimit(text: string) {
   if (countWords(text) > MAX_CHAPTER_WORDS) {
     throw new Error(
-      `Chapters are limited to ${MAX_CHAPTER_WORDS} words for now.`,
+      `Chapters are limited to ${MAX_CHAPTER_WORDS.toLocaleString()} words.`,
     );
   }
 }

@@ -1531,6 +1531,15 @@ textarea::placeholder {
   color: #809288;
   margin-top: 3px;
 }
+.extraction-notice {
+  margin: 18px 0 0;
+  padding: 11px 14px;
+  border-radius: 9px;
+  background: #fff4e9;
+  color: #8a4b2e;
+  font-size: 13px;
+  line-height: 1.5;
+}
 .setup-actions {
   display: flex;
   justify-content: flex-end;

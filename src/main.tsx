@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   candidates,
@@ -9,8 +9,16 @@ import {
   type View,
 } from './app-model';
 import { countWords, MAX_CHAPTER_WORDS } from './domain';
-import { signIn, signUp } from './lib/auth';
-import { isSupabaseConfigured } from './lib/supabase';
+import { getCurrentUser, signIn, signUp } from './lib/auth';
+import {
+  createBackendBook,
+  createBackendChapter,
+  listBackendChapters,
+  listBooks,
+  type BackendBook,
+} from './lib/books';
+import { extractVocabulary } from './lib/extraction';
+import { isSupabaseConfigured, supabase } from './lib/supabase';
 import './styles.css';
 
 type IconName =
@@ -380,10 +388,16 @@ function Auth({ go }: { go: (view: View) => void }) {
               const form = new FormData(e.currentTarget);
               try {
                 const action = mode === 'signup' ? signUp : signIn;
-                await action(
+                const result = await action(
                   String(form.get('email')),
                   String(form.get('password')),
                 );
+                if (mode === 'signup' && !result.preview && !result.session) {
+                  setError(
+                    'Check your email to confirm your account, then log in.',
+                  );
+                  return;
+                }
                 go('library');
               } catch (authError) {
                 setError(
@@ -487,8 +501,8 @@ function AppShell({
         <div className="workspace">
           <span className="workspace-label">WORKSPACE</span>
           <button className="workspace-select">
-            <span className="workspace-avatar">A</span>
-            <span>Alex’s library</span>
+            <span className="workspace-avatar">Y</span>
+            <span>Your library</span>
             <Icon name="chevron" />
           </button>
         </div>
@@ -519,10 +533,10 @@ function AppShell({
             <Icon name="settings" /> Settings
           </button>
           <div className="profile">
-            <span className="profile-avatar">A</span>
+            <span className="profile-avatar">Y</span>
             <span>
-              <b>Alex Morgan</b>
-              <small>Free workspace</small>
+              <b>Your account</b>
+              <small>Personal workspace</small>
             </span>
             <span className="profile-more">•••</span>
           </div>
@@ -548,7 +562,8 @@ function AppShell({
           </div>
           <div className="header-spacer" />
           <span className="header-status">
-            <span /> Saved locally
+            <span />{' '}
+            {isSupabaseConfigured ? 'Connected to Supabase' : 'Saved locally'}
           </span>
           <button className="notification">○</button>
           <button className="header-avatar">A</button>
@@ -581,17 +596,40 @@ function NavItem({
   );
 }
 
+function backendBookToDemo(
+  book: BackendBook,
+  chapters: DemoBook['chapters'],
+): DemoBook {
+  return {
+    id: book.id,
+    title: book.title,
+    author: book.author || 'Unknown author',
+    language: book.targetLanguage,
+    level: book.learnerLevel,
+    progress: 0,
+    cover: 'custom',
+    chapters,
+  };
+}
+
 function NewBook({
   go,
   onCreate,
 }: {
   go: (view: View) => void;
-  onCreate: (book: DemoBook) => void;
+  onCreate: (input: {
+    title: string;
+    author: string;
+    language: string;
+    level: string;
+  }) => Promise<void>;
 }) {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [language, setLanguage] = useState('French');
   const [level, setLevel] = useState('B1');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   return (
     <AppShell view="newBook" go={go}>
       <main className="content narrow new-book-page">
@@ -622,17 +660,17 @@ function NewBook({
             <form
               onSubmit={(event) => {
                 event.preventDefault();
-                const book: DemoBook = {
-                  id: `book-${Date.now()}`,
-                  title: title.trim() || 'Untitled book',
-                  author: author.trim() || 'Unknown author',
-                  language,
-                  level,
-                  progress: 0,
-                  cover: 'stranger',
-                  chapters: [],
-                };
-                onCreate(book);
+                setError('');
+                setBusy(true);
+                void onCreate({ title, author, language, level })
+                  .catch((createError) =>
+                    setError(
+                      createError instanceof Error
+                        ? createError.message
+                        : 'Unable to create this book.',
+                    ),
+                  )
+                  .finally(() => setBusy(false));
               }}
             >
               <label>
@@ -679,12 +717,17 @@ function NewBook({
                   <option>C2</option>
                 </select>
               </label>
+              {error && (
+                <p className="form-error" role="alert">
+                  {error}
+                </p>
+              )}
               <div className="new-book-actions">
                 <Button variant="outline" onClick={() => go('library')}>
                   Cancel
                 </Button>
                 <Button type="submit">
-                  Create book <Icon name="arrow" />
+                  {busy ? 'Creating…' : 'Create book'} <Icon name="arrow" />
                 </Button>
               </div>
             </form>
@@ -699,52 +742,72 @@ function Library({
   go,
   books,
   selectBook,
+  userLabel,
 }: {
   go: (view: View) => void;
   books: DemoBook[];
   selectBook: (book: DemoBook) => void;
+  userLabel?: string | null;
 }) {
+  const currentBook = books[0];
+  const currentChapter = currentBook?.chapters[0];
   return (
     <AppShell view="library" go={go}>
       <main className="content">
         <div className="page-intro">
           <div>
-            <span className="kicker">THURSDAY, SEPTEMBER 17</span>
-            <h1>Good evening, Alex.</h1>
+            <span className="kicker">YOUR READING SPACE</span>
+            <h1>{userLabel ? `Welcome, ${userLabel}.` : 'Your library.'}</h1>
             <p>What story are you stepping into today?</p>
           </div>
           <Button onClick={() => go('newBook')}>
             <Icon name="plus" /> Add a book
           </Button>
         </div>
-        <section className="continue-card">
-          <div className="continue-cover cover-prince">
-            <span>
-              THE
-              <br />
-              <b>
-                LITTLE
-                <br />
-                PRINCE
-              </b>
-            </span>
-          </div>
-          <div className="continue-copy">
-            <span className="kicker">CONTINUE READING</span>
-            <h2>The Little Prince</h2>
-            <p>Chapter 2 · The Asteroid</p>
-            <div className="progress-line">
-              <span style={{ width: '68%' }} />
+        {currentBook ? (
+          <section className="continue-card">
+            <div className={`continue-cover cover-${currentBook.cover}`}>
+              <span>{currentBook.title}</span>
             </div>
-            <div className="progress-meta">
-              <span>68% complete</span>
-              <span>12 min left</span>
+            <div className="continue-copy">
+              <span className="kicker">CONTINUE READING</span>
+              <h2>{currentBook.title}</h2>
+              <p>
+                {currentChapter
+                  ? `Chapter ${currentChapter.number} · ${currentChapter.title}`
+                  : 'Add your first chapter to begin.'}
+              </p>
+              <div className="progress-line">
+                <span style={{ width: `${currentBook.progress}%` }} />
+              </div>
+              <div className="progress-meta">
+                <span>{currentBook.progress}% complete</span>
+                <span>{currentBook.chapters.length} chapters</span>
+              </div>
             </div>
-          </div>
-          <Button variant="soft" onClick={() => go('reader')}>
-            Continue reading <Icon name="arrow" />
-          </Button>
-        </section>
+            <Button
+              variant="soft"
+              onClick={() => {
+                selectBook(currentBook);
+                go('book');
+              }}
+            >
+              {currentChapter ? 'View book' : 'Add a chapter'}{' '}
+              <Icon name="arrow" />
+            </Button>
+          </section>
+        ) : (
+          <section className="continue-card">
+            <div className="continue-copy">
+              <span className="kicker">YOUR LIBRARY IS READY</span>
+              <h2>Add your first book.</h2>
+              <p>Start with the book and chapter you want to read next.</p>
+            </div>
+            <Button variant="soft" onClick={() => go('newBook')}>
+              Add a book <Icon name="arrow" />
+            </Button>
+          </section>
+        )}
         <section className="library-section">
           <div className="section-toolbar">
             <div>
@@ -794,35 +857,7 @@ function BookCard({ book, onClick }: { book: DemoBook; onClick: () => void }) {
   return (
     <button className="book-card" onClick={onClick}>
       <div className={`book-cover cover-${book.cover}`}>
-        <span>
-          {book.cover === 'prince' ? (
-            <>
-              THE
-              <br />
-              <b>
-                LITTLE
-                <br />
-                PRINCE
-              </b>
-            </>
-          ) : book.cover === 'gatsby' ? (
-            <>
-              THE
-              <br />
-              <b>
-                GREAT
-                <br />
-                GATSBY
-              </b>
-            </>
-          ) : (
-            <>
-              L’
-              <br />
-              <b>ÉTRANGER</b>
-            </>
-          )}
-        </span>
+        <span>{book.title}</span>
         <small>{book.language.toUpperCase()}</small>
       </div>
       <div className="book-card-info">
@@ -845,9 +880,11 @@ function BookCard({ book, onClick }: { book: DemoBook; onClick: () => void }) {
 function BookDetail({
   book,
   go,
+  selectChapter,
 }: {
   book: DemoBook;
   go: (view: View) => void;
+  selectChapter: (chapter: DemoBook['chapters'][number]) => void;
 }) {
   return (
     <AppShell view="book" go={go}>
@@ -857,35 +894,7 @@ function BookDetail({
         </button>
         <section className="book-hero">
           <div className={`book-cover large-cover cover-${book.cover}`}>
-            <span>
-              {book.cover === 'prince' ? (
-                <>
-                  THE
-                  <br />
-                  <b>
-                    LITTLE
-                    <br />
-                    PRINCE
-                  </b>
-                </>
-              ) : book.cover === 'gatsby' ? (
-                <>
-                  THE
-                  <br />
-                  <b>
-                    GREAT
-                    <br />
-                    GATSBY
-                  </b>
-                </>
-              ) : (
-                <>
-                  L’
-                  <br />
-                  <b>ÉTRANGER</b>
-                </>
-              )}
-            </span>
+            <span>{book.title}</span>
             <small>{book.language.toUpperCase()}</small>
           </div>
           <div className="book-hero-copy">
@@ -928,9 +937,10 @@ function BookDetail({
             <button
               className="chapter-card"
               key={chapter.id}
-              onClick={() =>
-                chapter.status === 'Ready' ? go('reader') : go('chapter')
-              }
+              onClick={() => {
+                selectChapter(chapter);
+                go('reader');
+              }}
             >
               <span className="chapter-index">
                 {String(chapter.number).padStart(2, '0')}
@@ -978,17 +988,31 @@ function ChapterSetup({
   book,
   go,
   onExtract,
+  onCreateChapter,
+  nextChapterNumber,
 }: {
   book: DemoBook;
   go: (view: View) => void;
-  onExtract: (amount: number) => void;
+  onExtract: (input: {
+    chapterId: string;
+    requestedCount: number;
+  }) => Promise<void>;
+  onCreateChapter: (input: {
+    number: number;
+    title: string;
+    sourceText: string;
+  }) => Promise<DemoBook['chapters'][number]>;
+  nextChapterNumber: number;
 }) {
-  const [text, setText] = useState(
-    'The room was quiet when she arrived. Outside, rain traced thin lines down the window, and the city seemed to be holding its breath.',
-  );
-  const [level, setLevel] = useState(book.level);
+  const [text, setText] = useState('');
+  const level = book.level;
   const [amount, setAmount] = useState(5);
   const [error, setError] = useState('');
+  const [chapterNumber, setChapterNumber] = useState(nextChapterNumber);
+  const [chapterTitle, setChapterTitle] = useState(
+    `Chapter ${nextChapterNumber}`,
+  );
+  const [busy, setBusy] = useState(false);
   const wordCount = countWords(text);
   const tooLong = wordCount > MAX_CHAPTER_WORDS;
   return (
@@ -1016,16 +1040,26 @@ function ChapterSetup({
           <div className="setup-fields">
             <label>
               Chapter number
-              <input type="number" defaultValue="4" min="1" />
+              <input
+                type="number"
+                value={chapterNumber}
+                onChange={(event) =>
+                  setChapterNumber(Number(event.target.value))
+                }
+                min="1"
+              />
             </label>
             <label>
               Chapter title
-              <input defaultValue="A new beginning" />
+              <input
+                value={chapterTitle}
+                onChange={(event) => setChapterTitle(event.target.value)}
+              />
             </label>
           </div>
           <label className="select-label">
             Your current level
-            <select value={level} onChange={(e) => setLevel(e.target.value)}>
+            <select value={level} disabled>
               <option>A1 · Beginner</option>
               <option>A2 · Elementary</option>
               <option>B1 · Intermediate</option>
@@ -1044,7 +1078,7 @@ function ChapterSetup({
                 setText(e.target.value);
                 setError(
                   countWords(e.target.value) > MAX_CHAPTER_WORDS
-                    ? `Chapters are limited to ${MAX_CHAPTER_WORDS} words for now.`
+                    ? `Chapters are limited to ${MAX_CHAPTER_WORDS.toLocaleString()} words.`
                     : '',
                 );
               }}
@@ -1052,7 +1086,8 @@ function ChapterSetup({
             />
             <div className="text-meta">
               <span className={tooLong ? 'word-limit-error' : ''}>
-                {wordCount} / {MAX_CHAPTER_WORDS} words
+                {wordCount.toLocaleString()} /{' '}
+                {MAX_CHAPTER_WORDS.toLocaleString()} words
               </span>
               <span>Original text is always preserved</span>
             </div>
@@ -1063,16 +1098,16 @@ function ChapterSetup({
                 <Icon name="sparkle" />
               </span>
               <span>
-                <b>Words to prepare</b>
-                <small>How many suggestions should we focus on?</small>
+                <b>Maximum words to prepare</b>
+                <small>We only suggest words suited to your level.</small>
               </span>
             </div>
             <div className="range-control">
               <output>{amount}</output>
               <input
                 type="range"
-                min="3"
-                max="12"
+                min="1"
+                max="50"
                 value={amount}
                 onChange={(e) => setAmount(Number(e.target.value))}
               />
@@ -1081,10 +1116,10 @@ function ChapterSetup({
           <div className="ai-disclosure">
             <Icon name="sparkle" />
             <span>
-              <b>AI extraction preview</b>
+              <b>Frequency-guided AI extraction</b>
               <small>
-                Gemini 2.5 Flash will be connected in the backend phase. This
-                frontend uses a representative result.
+                Frequency ranks select suitable words first; Gemini adds their
+                translation and context.
               </small>
             </span>
           </div>
@@ -1099,9 +1134,32 @@ function ChapterSetup({
             </Button>
             <Button
               disabled={tooLong || wordCount === 0}
-              onClick={() => onExtract(amount)}
+              onClick={() => {
+                setBusy(true);
+                setError('');
+                void onCreateChapter({
+                  number: chapterNumber,
+                  title: chapterTitle,
+                  sourceText: text,
+                })
+                  .then((chapter) =>
+                    onExtract({
+                      chapterId: chapter.id,
+                      requestedCount: amount,
+                    }),
+                  )
+                  .catch((createError) =>
+                    setError(
+                      createError instanceof Error
+                        ? createError.message
+                        : 'Unable to save this chapter.',
+                    ),
+                  )
+                  .finally(() => setBusy(false));
+              }}
             >
-              Extract vocabulary <Icon name="arrow" />
+              {busy ? 'Extracting…' : 'Extract vocabulary'}{' '}
+              <Icon name="arrow" />
             </Button>
           </div>
         </section>
@@ -1114,13 +1172,17 @@ function Review({
   go,
   selected,
   toggle,
+  candidateItems,
+  notice,
 }: {
   go: (view: View) => void;
   selected: Set<string>;
   toggle: (id: string) => void;
+  candidateItems: Candidate[];
+  notice: string | null;
 }) {
   const [query, setQuery] = useState('');
-  const visible = candidates.filter((c) =>
+  const visible = candidateItems.filter((c) =>
     c.word.toLowerCase().includes(query.toLowerCase()),
   );
   return (
@@ -1146,9 +1208,14 @@ function Review({
             <small>Review before saving</small>
           </div>
         </div>
+        {notice && (
+          <p className="extraction-notice" role="status">
+            {notice}
+          </p>
+        )}
         <div className="review-toolbar">
           <span>
-            <b>{selected.size}</b> of {candidates.length} selected
+            <b>{selected.size}</b> of {candidateItems.length} selected
           </span>
           <div className="review-actions">
             <label className="search-box">
@@ -1161,7 +1228,9 @@ function Review({
             </label>
             <button
               onClick={() =>
-                candidates.forEach((c) => !selected.has(c.id) && toggle(c.id))
+                candidateItems.forEach(
+                  (c) => !selected.has(c.id) && toggle(c.id),
+                )
               }
             >
               Select all
@@ -1227,13 +1296,15 @@ function CandidateCard({
 function Prepare({
   go,
   selected,
+  candidateItems,
 }: {
   go: (view: View) => void;
   selected: Set<string>;
+  candidateItems: Candidate[];
 }) {
   const [index, setIndex] = useState(0);
-  const words = candidates.filter((c) => selected.has(c.id));
-  const current = words[index] || candidates[0];
+  const words = candidateItems.filter((c) => selected.has(c.id));
+  const current = words[index] || candidateItems[0];
   return (
     <AppShell view="prepare" go={go}>
       <main className="content prepare-content">
@@ -1334,9 +1405,12 @@ const lookupTranslations: Record<
   changed: { translation: 'changé', partOfSpeech: 'verb' },
 };
 
-function getWordDetails(word: string): WordDetails {
+function getWordDetails(
+  word: string,
+  candidateItems: Candidate[] = candidates,
+): WordDetails {
   const normalized = word.toLowerCase();
-  const candidate = candidates.find(
+  const candidate = candidateItems.find(
     (item) =>
       item.word.toLowerCase() === normalized ||
       item.word.toLowerCase().replace('to ', '') === normalized,
@@ -1359,6 +1433,7 @@ function getWordDetails(word: string): WordDetails {
 function tokenizeReaderText(
   text: string,
   onWordClick: (word: string) => void,
+  candidateItems: Candidate[],
   activeWord?: string | null,
 ) {
   return text.split(/(\s+)/).map((token, index) => {
@@ -1376,7 +1451,7 @@ function tokenizeReaderText(
         <button
           type="button"
           title={`Translate ${word}`}
-          className={`reader-word ${candidates.some((candidate) => candidate.word.toLowerCase().replace('to ', '') === word.toLowerCase()) ? 'word-highlight' : ''} ${activeWord?.toLowerCase() === word.toLowerCase() ? 'selected' : ''}`}
+          className={`reader-word ${candidateItems.some((candidate) => candidate.word.toLowerCase().replace('to ', '') === word.toLowerCase()) ? 'word-highlight' : ''} ${activeWord?.toLowerCase() === word.toLowerCase() ? 'selected' : ''}`}
           onClick={() => onWordClick(word)}
         >
           {word}
@@ -1391,24 +1466,35 @@ function Reader({
   go,
   saved,
   setSaved,
+  book,
+  chapter,
+  candidateItems,
 }: {
   go: (view: View) => void;
   saved: Set<string>;
   setSaved: (word: string) => void;
+  book: DemoBook;
+  chapter: DemoBook['chapters'][number];
+  candidateItems: Candidate[];
 }) {
   const [activeWord, setActiveWord] = useState<string | null>(null);
   const [fontSize, setFontSize] = useState(20);
-  const active = activeWord ? getWordDetails(activeWord) : null;
+  const active = activeWord ? getWordDetails(activeWord, candidateItems) : null;
+  const paragraphs = chapter.sourceText
+    ? chapter.sourceText.split(/\n{2,}/).filter(Boolean)
+    : readerParagraphs;
   return (
     <AppShell view="reader" go={go} savedCount={saved.size}>
       <main className="reader-page">
         <div className="reader-top">
           <button className="back-link" onClick={() => go('book')}>
-            <Icon name="back" /> The Little Prince
+            <Icon name="back" /> {book.title}
           </button>
           <div className="reader-title">
-            <span className="kicker">READING · CHAPTER 02</span>
-            <h1>The Asteroid</h1>
+            <span className="kicker">
+              READING · CHAPTER {String(chapter.number).padStart(2, '0')}
+            </span>
+            <h1>{chapter.title}</h1>
           </div>
           <div className="reader-tools">
             <button onClick={() => setFontSize(Math.max(16, fontSize - 1))}>
@@ -1420,7 +1506,7 @@ function Reader({
             <button onClick={() => go('vocabulary')}>
               <Icon name="bookmark" />
             </button>
-            <button onClick={() => exportWords(saved, 'little-prince')}>
+            <button onClick={() => exportWords(saved, candidateItems, book.id)}>
               <Icon name="download" />
             </button>
           </div>
@@ -1428,19 +1514,24 @@ function Reader({
         <div className="reader-layout">
           <article className="reading-paper">
             <div className="reading-meta">
-              <span>CHAPTER 02</span>
-              <span>12 MIN READ</span>
+              <span>CHAPTER {String(chapter.number).padStart(2, '0')}</span>
+              <span>{chapter.words} WORDS</span>
             </div>
-            <h2>The Asteroid</h2>
+            <h2>{chapter.title}</h2>
             <div className="reading-copy" style={{ fontSize: `${fontSize}px` }}>
-              {readerParagraphs.map((paragraph) => (
-                <p key={paragraph}>
-                  {tokenizeReaderText(paragraph, setActiveWord, activeWord)}
+              {paragraphs.map((paragraph, index) => (
+                <p key={`${index}-${paragraph}`}>
+                  {tokenizeReaderText(
+                    paragraph,
+                    setActiveWord,
+                    candidateItems,
+                    activeWord,
+                  )}
                 </p>
               ))}
             </div>
             <div className="reader-end">
-              <span>— End of preview —</span>
+              <span>— End of chapter —</span>
               <Button variant="soft" onClick={() => go('book')}>
                 Back to chapters
               </Button>
@@ -1502,7 +1593,7 @@ function Reader({
                 </button>
               </div>
               {Array.from(saved).map((word) => {
-                const details = getWordDetails(word);
+                const details = getWordDetails(word, candidateItems);
                 return (
                   <button
                     className="mini-word"
@@ -1527,9 +1618,13 @@ function Reader({
     </AppShell>
   );
 }
-function exportWords(saved: Set<string>, bookId?: string) {
+function exportWords(
+  saved: Set<string>,
+  candidateItems: Candidate[],
+  bookId?: string,
+) {
   const rows = Array.from(saved)
-    .map(getWordDetails)
+    .map((word) => getWordDetails(word, candidateItems))
     .filter((word) => !bookId || word.bookId === bookId);
   const csv = [
     ['Front', 'Back', 'Context'],
@@ -1549,15 +1644,17 @@ function exportWords(saved: Set<string>, bookId?: string) {
 function Vocabulary({
   go,
   saved,
+  candidateItems,
 }: {
   go: (view: View) => void;
   saved: Set<string>;
+  candidateItems: Candidate[];
 }) {
   const [query, setQuery] = useState('');
   const [bookFilter, setBookFilter] = useState('little-prince');
   const [sort, setSort] = useState('newest');
   const filteredWords = Array.from(saved)
-    .map(getWordDetails)
+    .map((word) => getWordDetails(word, candidateItems))
     .filter(
       (word) =>
         (bookFilter === 'all' || word.bookId === bookFilter) &&
@@ -1577,7 +1674,11 @@ function Vocabulary({
           </div>
           <Button
             onClick={() =>
-              exportWords(saved, bookFilter === 'all' ? undefined : bookFilter)
+              exportWords(
+                saved,
+                candidateItems,
+                bookFilter === 'all' ? undefined : bookFilter,
+              )
             }
           >
             <Icon name="download" /> Export CSV
@@ -1654,7 +1755,11 @@ function Vocabulary({
           </span>
           <button
             onClick={() =>
-              exportWords(saved, bookFilter === 'all' ? undefined : bookFilter)
+              exportWords(
+                saved,
+                candidateItems,
+                bookFilter === 'all' ? undefined : bookFilter,
+              )
             }
           >
             Export <Icon name="arrow" />
@@ -1667,8 +1772,18 @@ function Vocabulary({
 
 function App() {
   const [view, setView] = useState<View>('landing');
-  const [books, setBooks] = useState<DemoBook[]>(demoBooks);
-  const [selectedBook, setSelectedBook] = useState<DemoBook>(demoBooks[0]);
+  const [books, setBooks] = useState<DemoBook[]>(
+    isSupabaseConfigured ? [] : demoBooks,
+  );
+  const [selectedBook, setSelectedBook] = useState<DemoBook | null>(
+    isSupabaseConfigured ? null : demoBooks[0],
+  );
+  const [selectedChapter, setSelectedChapter] = useState<
+    DemoBook['chapters'][number] | null
+  >(null);
+  const [userLabel, setUserLabel] = useState<string | null>(null);
+  const [candidateItems, setCandidateItems] = useState<Candidate[]>(candidates);
+  const [extractionNotice, setExtractionNotice] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(
     new Set(candidates.map((c) => c.id)),
   );
@@ -1688,14 +1803,159 @@ function App() {
       next.has(word) ? next.delete(word) : next.add(word);
       return next;
     });
-  const createBook = (book: DemoBook) => {
+
+  const refreshBooks = async () => {
+    if (!isSupabaseConfigured) return;
+    const user = await getCurrentUser().catch(() => null);
+    if (!user) {
+      setUserLabel(null);
+      setBooks([]);
+      setSelectedBook(null);
+      setSelectedChapter(null);
+      return;
+    }
+    setUserLabel(user.email ?? 'Reader');
+    const backendBooks = await listBooks();
+    const loadedBooks = await Promise.all(
+      backendBooks.map(async (book) => {
+        const chapters = await listBackendChapters(book.id);
+        return backendBookToDemo(
+          book,
+          chapters.map((chapter) => ({
+            id: chapter.id,
+            number: chapter.number,
+            title: chapter.title,
+            words: chapter.wordCount,
+            sourceText: chapter.sourceText,
+            status:
+              chapter.extractionStatus === 'complete'
+                ? ('Ready' as const)
+                : chapter.extractionStatus === 'pending'
+                  ? ('In progress' as const)
+                  : ('Not started' as const),
+          })),
+        );
+      }),
+    );
+    setBooks(loadedBooks);
+    setSelectedBook(loadedBooks[0] ?? null);
+    setSelectedChapter(null);
+  };
+
+  useEffect(() => {
+    if (!supabase) return;
+    void refreshBooks();
+    const { data } = supabase.auth.onAuthStateChange(() => {
+      void refreshBooks();
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  const createBook = async (input: {
+    title: string;
+    author: string;
+    language: string;
+    level: string;
+  }) => {
+    const book = isSupabaseConfigured
+      ? backendBookToDemo(
+          await createBackendBook({
+            title: input.title,
+            author: input.author,
+            targetLanguage: input.language,
+            learnerLevel: input.level,
+          }),
+          [],
+        )
+      : {
+          id: `book-${Date.now()}`,
+          title: input.title.trim() || 'Untitled book',
+          author: input.author.trim() || 'Unknown author',
+          language: input.language,
+          level: input.level,
+          progress: 0,
+          cover: 'stranger',
+          chapters: [],
+        };
     setBooks((old) => [...old, book]);
     setSelectedBook(book);
     go('book');
   };
-  const setExtractionAmount = (amount: number) => {
-    setSelected(
-      new Set(candidates.slice(0, amount).map((candidate) => candidate.id)),
+
+  const createChapter = async (input: {
+    number: number;
+    title: string;
+    sourceText: string;
+  }) => {
+    if (!selectedBook) throw new Error('SELECT_BOOK_REQUIRED');
+    const chapter = isSupabaseConfigured
+      ? await createBackendChapter({
+          bookId: selectedBook.id,
+          number: input.number,
+          title: input.title,
+          sourceText: input.sourceText,
+        })
+      : {
+          id: `chapter-${Date.now()}`,
+          number: input.number,
+          title: input.title,
+          words: countWords(input.sourceText),
+          status: 'Not started' as const,
+        };
+    const createdChapter = {
+      id: chapter.id,
+      number: chapter.number,
+      title: chapter.title,
+      words: 'wordCount' in chapter ? chapter.wordCount : chapter.words,
+      sourceText:
+        'sourceText' in chapter ? chapter.sourceText : input.sourceText,
+      status: 'Not started' as const,
+    };
+    const nextBook = {
+      ...selectedBook,
+      chapters: [...selectedBook.chapters, createdChapter],
+    };
+    setSelectedChapter(createdChapter);
+    setSelectedBook(nextBook);
+    setBooks((old) =>
+      old.map((book) => (book.id === nextBook.id ? nextBook : book)),
+    );
+    return createdChapter;
+  };
+  const extractChapter = async ({
+    chapterId,
+    requestedCount,
+  }: {
+    chapterId: string;
+    requestedCount: number;
+  }) => {
+    if (!isSupabaseConfigured) {
+      const preview = candidates.slice(0, requestedCount);
+      setCandidateItems(preview);
+      setSelected(new Set(preview.map((candidate) => candidate.id)));
+      setExtractionNotice(null);
+      go('review');
+      return;
+    }
+    const result = await extractVocabulary({ chapterId, requestedCount });
+    const extracted = result.items.map((item) => ({
+      id: item.id,
+      bookId: selectedBook?.id ?? '',
+      word: item.word,
+      translation: item.translation,
+      partOfSpeech: item.partOfSpeech,
+      level: item.level,
+      context: item.context,
+      confidence: item.confidence,
+    }));
+    setCandidateItems(extracted);
+    setSelected(new Set(extracted.map((candidate) => candidate.id)));
+    setExtractionNotice(
+      result.items.length === 0
+        ? 'No new words from the supported frequency range were found for this level in this chapter.'
+        : result.eligibleCount > 50
+          ? `This chapter contains ${result.eligibleCount} level-appropriate words. We selected the most frequent ones first; keep the list focused before reading.`
+          : null,
     );
     go('review');
   };
@@ -1703,24 +1963,102 @@ function App() {
     if (view === 'landing') return <Landing go={go} />;
     if (view === 'auth') return <Auth go={go} />;
     if (view === 'library')
-      return <Library go={go} books={books} selectBook={setSelectedBook} />;
-    if (view === 'newBook') return <NewBook go={go} onCreate={createBook} />;
-    if (view === 'book') return <BookDetail book={selectedBook} go={go} />;
-    if (view === 'chapter')
       return (
+        <Library
+          go={go}
+          books={books}
+          selectBook={setSelectedBook}
+          userLabel={userLabel}
+        />
+      );
+    if (view === 'newBook') return <NewBook go={go} onCreate={createBook} />;
+    if (view === 'book')
+      return selectedBook ? (
+        <BookDetail
+          book={selectedBook}
+          go={go}
+          selectChapter={setSelectedChapter}
+        />
+      ) : (
+        <Library
+          go={go}
+          books={books}
+          selectBook={setSelectedBook}
+          userLabel={userLabel}
+        />
+      );
+    if (view === 'chapter')
+      return selectedBook ? (
         <ChapterSetup
           book={selectedBook}
           go={go}
-          onExtract={setExtractionAmount}
+          onExtract={extractChapter}
+          onCreateChapter={createChapter}
+          nextChapterNumber={
+            Math.max(
+              0,
+              ...selectedBook.chapters.map((chapter) => chapter.number),
+            ) + 1
+          }
+        />
+      ) : (
+        <Library
+          go={go}
+          books={books}
+          selectBook={setSelectedBook}
+          userLabel={userLabel}
         />
       );
     if (view === 'review')
-      return <Review go={go} selected={selected} toggle={toggle} />;
-    if (view === 'prepare') return <Prepare go={go} selected={selected} />;
+      return (
+        <Review
+          go={go}
+          selected={selected}
+          toggle={toggle}
+          candidateItems={candidateItems}
+          notice={extractionNotice}
+        />
+      );
+    if (view === 'prepare')
+      return (
+        <Prepare go={go} selected={selected} candidateItems={candidateItems} />
+      );
     if (view === 'reader')
-      return <Reader go={go} saved={saved} setSaved={saveWord} />;
-    return <Vocabulary go={go} saved={saved} />;
-  }, [view, books, selectedBook, selected, saved]);
+      return selectedBook && selectedChapter ? (
+        <Reader
+          go={go}
+          saved={saved}
+          setSaved={saveWord}
+          book={selectedBook}
+          chapter={selectedChapter}
+          candidateItems={candidateItems}
+        />
+      ) : selectedBook ? (
+        <BookDetail
+          book={selectedBook}
+          go={go}
+          selectChapter={setSelectedChapter}
+        />
+      ) : (
+        <Library
+          go={go}
+          books={books}
+          selectBook={setSelectedBook}
+          userLabel={userLabel}
+        />
+      );
+    return <Vocabulary go={go} saved={saved} candidateItems={candidateItems} />;
+  }, [
+    view,
+    books,
+    selectedBook,
+    selectedChapter,
+    selected,
+    saved,
+    userLabel,
+    candidateItems,
+    extractionNotice,
+  ]);
   return page;
 }
 createRoot(document.getElementById('root')!).render(<App />);
