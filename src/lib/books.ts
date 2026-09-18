@@ -87,6 +87,21 @@ export async function createBackendBook(input: {
   return mapBook(data);
 }
 
+export async function updateBackendBookLevel(
+  bookId: string,
+  learnerLevel: string,
+) {
+  const { client } = await requireUser();
+  const { data, error } = await client
+    .from('books')
+    .update({ learner_level: learnerLevel })
+    .eq('id', bookId)
+    .select()
+    .single();
+  if (error) throw error;
+  return mapBook(data);
+}
+
 export async function listBackendChapters(bookId: string) {
   const { client } = await requireUser();
   const { data, error } = await client

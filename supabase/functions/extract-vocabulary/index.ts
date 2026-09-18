@@ -340,7 +340,7 @@ Deno.serve(async (request) => {
       })),
     )}`;
     const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' +
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=' +
         encodeURIComponent(apiKey),
       {
         method: 'POST',
@@ -360,6 +360,17 @@ Deno.serve(async (request) => {
             'Vocabulary extraction is temporarily unavailable because the AI usage limit was reached. Please try again later.',
         },
         429,
+      );
+    }
+    if (response.status === 503) {
+      await failRun('AI_TEMPORARILY_UNAVAILABLE');
+      return json(
+        {
+          code: 'AI_TEMPORARILY_UNAVAILABLE',
+          message:
+            'The vocabulary service is temporarily busy. Please retry in a moment.',
+        },
+        503,
       );
     }
     if (!response.ok) {
@@ -473,7 +484,7 @@ Deno.serve(async (request) => {
     ]);
     return json({
       provider: 'gemini',
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.6-flash',
       inputWordCount,
       eligibleCount,
       items: (savedItems ?? []).map((item) => ({

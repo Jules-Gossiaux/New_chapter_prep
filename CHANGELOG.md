@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1 — Extraction recovery
+
+- Updated the Gemini model from retired `gemini-2.5-flash` to `gemini-3.6-flash` after the provider returned a 404.
+- Made the chapter-level selector editable and persisted level changes to the associated Supabase book.
+- Surface structured Edge Function error messages in the browser instead of a generic non-2xx status.
+
 ## 0.4.0 — Frequency-guided vocabulary extraction
 
 - Added a server-only OpenSubtitles frequency reference for the top 10,000 English and French forms, with source rank and count.

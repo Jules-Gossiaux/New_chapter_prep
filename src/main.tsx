@@ -16,6 +16,7 @@ import {
   listBackendChapters,
   listBooks,
   type BackendBook,
+  updateBackendBookLevel,
 } from './lib/books';
 import { extractVocabulary } from './lib/extraction';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
@@ -989,6 +990,7 @@ function ChapterSetup({
   go,
   onExtract,
   onCreateChapter,
+  onChangeLevel,
   nextChapterNumber,
 }: {
   book: DemoBook;
@@ -1002,10 +1004,11 @@ function ChapterSetup({
     title: string;
     sourceText: string;
   }) => Promise<DemoBook['chapters'][number]>;
+  onChangeLevel: (level: string) => Promise<void>;
   nextChapterNumber: number;
 }) {
   const [text, setText] = useState('');
-  const level = book.level;
+  const [level, setLevel] = useState(book.level);
   const [amount, setAmount] = useState(5);
   const [error, setError] = useState('');
   const [chapterNumber, setChapterNumber] = useState(nextChapterNumber);
@@ -1059,13 +1062,28 @@ function ChapterSetup({
           </div>
           <label className="select-label">
             Your current level
-            <select value={level} disabled>
-              <option>A1 · Beginner</option>
-              <option>A2 · Elementary</option>
-              <option>B1 · Intermediate</option>
-              <option>B2 · Upper intermediate</option>
-              <option>C1 · Advanced</option>
-              <option>C2 · Proficient</option>
+            <select
+              value={level}
+              onChange={(event) => {
+                const nextLevel = event.target.value;
+                setLevel(nextLevel);
+                setError('');
+                void onChangeLevel(nextLevel).catch((levelError) => {
+                  setLevel(book.level);
+                  setError(
+                    levelError instanceof Error
+                      ? levelError.message
+                      : 'Unable to update your level.',
+                  );
+                });
+              }}
+            >
+              <option value="A1">A1 · Beginner</option>
+              <option value="A2">A2 · Elementary</option>
+              <option value="B1">B1 · Intermediate</option>
+              <option value="B2">B2 · Upper intermediate</option>
+              <option value="C1">C1 · Advanced</option>
+              <option value="C2">C2 · Proficient</option>
             </select>
           </label>
           <div className="text-label">
@@ -1922,6 +1940,19 @@ function App() {
     );
     return createdChapter;
   };
+  const changeBookLevel = async (level: string) => {
+    if (!selectedBook) throw new Error('SELECT_BOOK_REQUIRED');
+    const updated = isSupabaseConfigured
+      ? backendBookToDemo(
+          await updateBackendBookLevel(selectedBook.id, level),
+          selectedBook.chapters,
+        )
+      : { ...selectedBook, level };
+    setSelectedBook(updated);
+    setBooks((old) =>
+      old.map((book) => (book.id === updated.id ? updated : book)),
+    );
+  };
   const extractChapter = async ({
     chapterId,
     requestedCount,
@@ -1994,6 +2025,7 @@ function App() {
           go={go}
           onExtract={extractChapter}
           onCreateChapter={createChapter}
+          onChangeLevel={changeBookLevel}
           nextChapterNumber={
             Math.max(
               0,

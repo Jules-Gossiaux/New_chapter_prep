@@ -11,6 +11,7 @@ export type ExtractionErrorCode =
   | 'UNSUPPORTED_LANGUAGE'
   | 'NO_ELIGIBLE_VOCABULARY'
   | 'AI_QUOTA_EXCEEDED'
+  | 'AI_TEMPORARILY_UNAVAILABLE'
   | 'AI_NOT_CONFIGURED'
   | 'AI_PROVIDER_ERROR'
   | 'AI_INVALID_RESPONSE'
@@ -25,7 +26,11 @@ export async function extractVocabulary(input: ExtractionRequest) {
   if (error) {
     let payload: { code?: ExtractionErrorCode; message?: string } = {};
     try {
-      payload = JSON.parse(error.message);
+      const response = (error as { context?: unknown }).context;
+      payload =
+        response instanceof Response
+          ? ((await response.json()) as typeof payload)
+          : JSON.parse(error.message);
     } catch {
       /* SDK may return a plain message. */
     }
