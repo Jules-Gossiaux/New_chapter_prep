@@ -13,12 +13,15 @@ import { getCurrentUser, signIn, signUp } from './lib/auth';
 import {
   createBackendBook,
   createBackendChapter,
+  deleteBackendBook,
+  deleteBackendChapter,
+  listBackendChapterCandidates,
   listBackendChapters,
   listBooks,
   type BackendBook,
   updateBackendBookLevel,
 } from './lib/books';
-import { extractVocabulary } from './lib/extraction';
+import { extractVocabulary, translateVocabularyWord } from './lib/extraction';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import './styles.css';
 
@@ -882,11 +885,54 @@ function BookDetail({
   book,
   go,
   selectChapter,
+  onDeleteBook,
+  onDeleteChapter,
 }: {
   book: DemoBook;
   go: (view: View) => void;
-  selectChapter: (chapter: DemoBook['chapters'][number]) => void;
+  selectChapter: (chapter: DemoBook['chapters'][number]) => Promise<void>;
+  onDeleteBook: (book: DemoBook) => Promise<void>;
+  onDeleteChapter: (chapter: DemoBook['chapters'][number]) => Promise<void>;
 }) {
+  const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const openChapter = async (chapter: DemoBook['chapters'][number]) => {
+    setError(null);
+    try {
+      await selectChapter(chapter);
+      go('reader');
+    } catch {
+      setError('Unable to open this chapter. Please retry.');
+    }
+  };
+  const removeBook = async () => {
+    if (!window.confirm(`Delete “${book.title}” and all of its chapters?`))
+      return;
+    setDeleting(book.id);
+    setError(null);
+    try {
+      await onDeleteBook(book);
+    } catch {
+      setError('Unable to delete this book. Please retry.');
+    } finally {
+      setDeleting(null);
+    }
+  };
+  const removeChapter = async (chapter: DemoBook['chapters'][number]) => {
+    if (
+      !window.confirm(`Delete chapter ${chapter.number}: “${chapter.title}”?`)
+    )
+      return;
+    setDeleting(chapter.id);
+    setError(null);
+    try {
+      await onDeleteChapter(chapter);
+    } catch {
+      setError('Unable to delete this chapter. Please retry.');
+    } finally {
+      setDeleting(null);
+    }
+  };
   return (
     <AppShell view="book" go={go}>
       <main className="content narrow">
@@ -918,9 +964,18 @@ function BookDetail({
               </span>
             </div>
           </div>
-          <Button onClick={() => go('chapter')}>
-            <Icon name="plus" /> Add chapter
-          </Button>
+          <div className="book-actions">
+            <Button onClick={() => go('chapter')}>
+              <Icon name="plus" /> Add chapter
+            </Button>
+            <button
+              className="delete-action"
+              onClick={removeBook}
+              disabled={deleting === book.id}
+            >
+              {deleting === book.id ? 'Deleting…' : 'Delete book'}
+            </button>
+          </div>
         </section>
         <div className="chapter-heading">
           <div>
@@ -935,34 +990,45 @@ function BookDetail({
         </div>
         <section className="chapter-list">
           {book.chapters.map((chapter) => (
-            <button
-              className="chapter-card"
-              key={chapter.id}
-              onClick={() => {
-                selectChapter(chapter);
-                go('reader');
-              }}
-            >
-              <span className="chapter-index">
-                {String(chapter.number).padStart(2, '0')}
-              </span>
-              <span className="chapter-info">
-                <b>{chapter.title}</b>
-                <small>
-                  {chapter.words
-                    ? `${chapter.words.toLocaleString()} words`
-                    : 'No text added yet'}
-                  {chapter.words ? ' · ' : ''}
-                  {chapter.status}
-                </small>
-              </span>
-              <Status status={chapter.status} />
-              <span className="chapter-arrow">
-                <Icon name="arrow" />
-              </span>
-            </button>
+            <div className="chapter-card" key={chapter.id}>
+              <button
+                className="chapter-open"
+                onClick={() => void openChapter(chapter)}
+              >
+                <span className="chapter-index">
+                  {String(chapter.number).padStart(2, '0')}
+                </span>
+                <span className="chapter-info">
+                  <b>{chapter.title}</b>
+                  <small>
+                    {chapter.words
+                      ? `${chapter.words.toLocaleString()} words`
+                      : 'No text added yet'}
+                    {chapter.words ? ' · ' : ''}
+                    {chapter.status}
+                  </small>
+                </span>
+                <Status status={chapter.status} />
+                <span className="chapter-arrow">
+                  <Icon name="arrow" />
+                </span>
+              </button>
+              <button
+                className="chapter-delete"
+                onClick={() => void removeChapter(chapter)}
+                disabled={deleting === chapter.id}
+                aria-label={`Delete ${chapter.title}`}
+              >
+                {deleting === chapter.id ? '…' : 'Delete'}
+              </button>
+            </div>
           ))}
         </section>
+        {error && (
+          <p className="form-error book-error" role="alert">
+            {error}
+          </p>
+        )}
         <div className="book-note">
           <Icon name="sparkle" />
           <span>
@@ -1423,10 +1489,10 @@ const lookupTranslations: Record<
   changed: { translation: 'changé', partOfSpeech: 'verb' },
 };
 
-function getWordDetails(
+function candidateWordDetails(
   word: string,
-  candidateItems: Candidate[] = candidates,
-): WordDetails {
+  candidateItems: Candidate[] = [],
+): WordDetails | null {
   const normalized = word.toLowerCase();
   const candidate = candidateItems.find(
     (item) =>
@@ -1434,16 +1500,34 @@ function getWordDetails(
       item.word.toLowerCase().replace('to ', '') === normalized,
   );
   if (candidate) return candidate;
+  return null;
+}
+
+function getWordDetails(
+  word: string,
+  candidateItems: Candidate[] = [],
+): WordDetails {
+  const candidate = candidateWordDetails(word, candidateItems);
+  if (candidate) return candidate;
+  const normalized = word.toLowerCase();
   const lookup = lookupTranslations[normalized];
+  if (!lookup || isSupabaseConfigured)
+    return {
+      word,
+      translation: 'Translation unavailable',
+      partOfSpeech: 'word',
+      level: '—',
+      context: 'Select this word in the chapter to translate it.',
+      confidence: 'Medium',
+      bookId: '',
+    };
   return {
     word,
-    translation: lookup?.translation ?? 'Translation will be connected soon',
-    partOfSpeech: lookup?.partOfSpeech ?? 'word',
+    translation: lookup.translation,
+    partOfSpeech: lookup.partOfSpeech,
     level: '—',
-    context: lookup
-      ? `Selected from the current chapter: “${word}”.`
-      : 'This word is ready for direct lookup. The live translation service will be connected in the backend phase.',
-    confidence: lookup ? 'Medium' : 'Medium',
+    context: `Selected from the current chapter: “${word}”.`,
+    confidence: 'Medium',
     bookId: 'little-prince',
   };
 }
@@ -1496,8 +1580,17 @@ function Reader({
   candidateItems: Candidate[];
 }) {
   const [activeWord, setActiveWord] = useState<string | null>(null);
+  const [lookups, setLookups] = useState<Record<string, WordDetails>>({});
+  const [translationError, setTranslationError] = useState<string | null>(null);
+  const [translating, setTranslating] = useState(false);
   const [fontSize, setFontSize] = useState(20);
-  const active = activeWord ? getWordDetails(activeWord, candidateItems) : null;
+  const active = activeWord
+    ? (candidateWordDetails(activeWord, candidateItems) ??
+      lookups[activeWord.toLowerCase()] ??
+      (!isSupabaseConfigured
+        ? getWordDetails(activeWord, candidateItems)
+        : null))
+    : null;
   const paragraphs = chapter.sourceText
     ? chapter.sourceText.split(/\n{2,}/).filter(Boolean)
     : readerParagraphs;
@@ -1541,7 +1634,44 @@ function Reader({
                 <p key={`${index}-${paragraph}`}>
                   {tokenizeReaderText(
                     paragraph,
-                    setActiveWord,
+                    (word) => {
+                      setActiveWord(word);
+                      setTranslationError(null);
+                      if (
+                        candidateWordDetails(word, candidateItems) ||
+                        lookups[word.toLowerCase()] ||
+                        translating ||
+                        !isSupabaseConfigured
+                      )
+                        return;
+                      setTranslating(true);
+                      void translateVocabularyWord({
+                        chapterId: chapter.id,
+                        word,
+                      })
+                        .then((result) => {
+                          setLookups((old) => ({
+                            ...old,
+                            [word.toLowerCase()]: {
+                              word: result.word,
+                              translation: result.translation,
+                              partOfSpeech: result.partOfSpeech,
+                              level: '—',
+                              context: result.context,
+                              confidence: result.confidence,
+                              bookId: book.id,
+                            },
+                          }));
+                        })
+                        .catch((error: unknown) => {
+                          setTranslationError(
+                            error instanceof Error
+                              ? error.message
+                              : 'The word could not be translated. Please retry.',
+                          );
+                        })
+                        .finally(() => setTranslating(false));
+                    },
                     candidateItems,
                     activeWord,
                   )}
@@ -1556,7 +1686,7 @@ function Reader({
             </div>
           </article>
           <aside className="reader-aside">
-            {active ? (
+            {active || (activeWord && translating) ? (
               <div className="word-panel">
                 <button
                   className="panel-close"
@@ -1565,28 +1695,36 @@ function Reader({
                   <Icon name="close" />
                 </button>
                 <span className="kicker">CONTEXTUAL HELP</span>
-                <h2>{active.word}</h2>
-                <p className="word-definition">{active.translation}</p>
-                <span className="part-pill">{active.partOfSpeech}</span>
+                <h2>{active?.word ?? activeWord}</h2>
+                <p className="word-definition">
+                  {active ? active.translation : 'Translating…'}
+                </p>
+                {active && (
+                  <span className="part-pill">{active.partOfSpeech}</span>
+                )}
                 <div className="panel-context">
                   <span>FROM THIS CHAPTER</span>
-                  <p>{active.context}</p>
+                  <p>
+                    {active?.context ?? 'Finding the word in this chapter…'}
+                  </p>
                 </div>
-                <Button
-                  className="full-button"
-                  variant={saved.has(active.word) ? 'soft' : 'primary'}
-                  onClick={() => setSaved(active.word)}
-                >
-                  {saved.has(active.word) ? (
-                    <>
-                      <Icon name="check" /> Saved to vocabulary
-                    </>
-                  ) : (
-                    <>
-                      <Icon name="bookmark" /> Add to my words
-                    </>
-                  )}
-                </Button>
+                {active && (
+                  <Button
+                    className="full-button"
+                    variant={saved.has(active.word) ? 'soft' : 'primary'}
+                    onClick={() => setSaved(active.word)}
+                  >
+                    {saved.has(active.word) ? (
+                      <>
+                        <Icon name="check" /> Saved to vocabulary
+                      </>
+                    ) : (
+                      <>
+                        <Icon name="bookmark" /> Add to my words
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="reader-help">
@@ -1600,33 +1738,34 @@ function Reader({
                 </p>
               </div>
             )}
+            {translationError && (
+              <p className="form-error" role="alert">
+                {translationError}
+              </p>
+            )}
             <div className="my-words-panel">
               <div className="aside-heading">
                 <span>
-                  <span className="kicker">YOUR WORDS</span>
-                  <b>{saved.size} saved</b>
+                  <span className="kicker">THIS CHAPTER</span>
+                  <b>{candidateItems.length} prepared</b>
                 </span>
-                <button onClick={() => go('vocabulary')}>
-                  View all <Icon name="arrow" />
-                </button>
               </div>
-              {Array.from(saved).map((word) => {
-                const details = getWordDetails(word, candidateItems);
+              {candidateItems.map((details) => {
                 return (
                   <button
                     className="mini-word"
-                    key={word}
-                    onClick={() => setActiveWord(word)}
+                    key={details.id}
+                    onClick={() => setActiveWord(details.word)}
                   >
-                    <b>{word}</b>
+                    <b>{details.word}</b>
                     <span>→</span>
                     <small>{details.translation}</small>
                   </button>
                 );
               })}
-              {saved.size === 0 && (
+              {candidateItems.length === 0 && (
                 <p className="aside-empty">
-                  Your saved words will appear here.
+                  No vocabulary has been prepared for this chapter yet.
                 </p>
               )}
             </div>
@@ -1790,6 +1929,7 @@ function Vocabulary({
 
 function App() {
   const [view, setView] = useState<View>('landing');
+  const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
   const [books, setBooks] = useState<DemoBook[]>(
     isSupabaseConfigured ? [] : demoBooks,
   );
@@ -1800,13 +1940,17 @@ function App() {
     DemoBook['chapters'][number] | null
   >(null);
   const [userLabel, setUserLabel] = useState<string | null>(null);
-  const [candidateItems, setCandidateItems] = useState<Candidate[]>(candidates);
+  const [candidateItems, setCandidateItems] = useState<Candidate[]>(
+    isSupabaseConfigured ? [] : candidates,
+  );
   const [extractionNotice, setExtractionNotice] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(
     new Set(candidates.map((c) => c.id)),
   );
   const [saved, setSaved] = useState<Set<string>>(
-    new Set(['discerning', 'unsettling', 'to linger', 'faintly']),
+    isSupabaseConfigured
+      ? new Set()
+      : new Set(['discerning', 'unsettling', 'to linger', 'faintly']),
   );
   const go = (next: View) => setView(next);
   const toggle = (id: string) =>
@@ -1830,7 +1974,7 @@ function App() {
       setBooks([]);
       setSelectedBook(null);
       setSelectedChapter(null);
-      return;
+      return false;
     }
     setUserLabel(user.email ?? 'Reader');
     const backendBooks = await listBooks();
@@ -1858,16 +2002,59 @@ function App() {
     setBooks(loadedBooks);
     setSelectedBook(loadedBooks[0] ?? null);
     setSelectedChapter(null);
+    return true;
   };
 
   useEffect(() => {
     if (!supabase) return;
-    void refreshBooks();
-    const { data } = supabase.auth.onAuthStateChange(() => {
-      void refreshBooks();
+    let active = true;
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active) return;
+      if (!session) {
+        setAuthReady(true);
+        return;
+      }
+      void refreshBooks().finally(() => {
+        if (!active) return;
+        setView('library');
+        setAuthReady(true);
+      });
     });
-    return () => data.subscription.unsubscribe();
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active || !session) return;
+      void refreshBooks().finally(() => {
+        if (active) setView('library');
+      });
+    });
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
   }, []);
+
+  const openChapter = async (chapter: DemoBook['chapters'][number]) => {
+    setSelectedChapter(chapter);
+    setCandidateItems([]);
+    setSelected(new Set());
+    if (!isSupabaseConfigured) {
+      setCandidateItems(candidates);
+      setSelected(new Set(candidates.map((candidate) => candidate.id)));
+      return;
+    }
+    const loaded = await listBackendChapterCandidates(chapter.id);
+    const chapterCandidates = loaded.map((candidate) => ({
+      id: candidate.id,
+      bookId: selectedBook?.id ?? '',
+      word: candidate.word,
+      translation: candidate.translation,
+      partOfSpeech: candidate.partOfSpeech,
+      level: candidate.level,
+      context: candidate.context,
+      confidence: candidate.confidence,
+    }));
+    setCandidateItems(chapterCandidates);
+    setSelected(new Set(chapterCandidates.map((candidate) => candidate.id)));
+  };
 
   const createBook = async (input: {
     title: string;
@@ -1934,6 +2121,8 @@ function App() {
       chapters: [...selectedBook.chapters, createdChapter],
     };
     setSelectedChapter(createdChapter);
+    setCandidateItems([]);
+    setSelected(new Set());
     setSelectedBook(nextBook);
     setBooks((old) =>
       old.map((book) => (book.id === nextBook.id ? nextBook : book)),
@@ -1952,6 +2141,32 @@ function App() {
     setBooks((old) =>
       old.map((book) => (book.id === updated.id ? updated : book)),
     );
+  };
+  const removeBook = async (book: DemoBook) => {
+    if (isSupabaseConfigured) await deleteBackendBook(book.id);
+    setBooks((old) => old.filter((item) => item.id !== book.id));
+    setSelectedBook(null);
+    setSelectedChapter(null);
+    setCandidateItems([]);
+    setSelected(new Set());
+    go('library');
+  };
+  const removeChapter = async (chapter: DemoBook['chapters'][number]) => {
+    if (!selectedBook) throw new Error('SELECT_BOOK_REQUIRED');
+    if (isSupabaseConfigured) await deleteBackendChapter(chapter.id);
+    const updated = {
+      ...selectedBook,
+      chapters: selectedBook.chapters.filter((item) => item.id !== chapter.id),
+    };
+    setSelectedBook(updated);
+    setBooks((old) =>
+      old.map((item) => (item.id === updated.id ? updated : item)),
+    );
+    if (selectedChapter?.id === chapter.id) {
+      setSelectedChapter(null);
+      setCandidateItems([]);
+      setSelected(new Set());
+    }
   };
   const extractChapter = async ({
     chapterId,
@@ -1991,6 +2206,7 @@ function App() {
     go('review');
   };
   const page = useMemo(() => {
+    if (!authReady) return null;
     if (view === 'landing') return <Landing go={go} />;
     if (view === 'auth') return <Auth go={go} />;
     if (view === 'library')
@@ -2008,7 +2224,9 @@ function App() {
         <BookDetail
           book={selectedBook}
           go={go}
-          selectChapter={setSelectedChapter}
+          selectChapter={openChapter}
+          onDeleteBook={removeBook}
+          onDeleteChapter={removeChapter}
         />
       ) : (
         <Library
@@ -2069,7 +2287,9 @@ function App() {
         <BookDetail
           book={selectedBook}
           go={go}
-          selectChapter={setSelectedChapter}
+          selectChapter={openChapter}
+          onDeleteBook={removeBook}
+          onDeleteChapter={removeChapter}
         />
       ) : (
         <Library
@@ -2090,6 +2310,7 @@ function App() {
     userLabel,
     candidateItems,
     extractionNotice,
+    authReady,
   ]);
   return page;
 }

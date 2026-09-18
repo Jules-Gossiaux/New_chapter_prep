@@ -17,3 +17,7 @@ Canonical chapter text can contain up to 50,000 words. Token matching is perform
 `vocabulary_frequency` has RLS enabled with an explicit deny-all browser policy. The authenticated Edge Function verifies chapter ownership with the caller token, then uses its server-only service-role client to read the reference table and persist the extraction run.
 
 Keep the OpenSubtitles attribution and its CC BY 3.0 licensing requirements when distributing or replacing the data. Record the source/version in the table if the list is refreshed. Set `GEMINI_API_KEY` in the Supabase Edge Function secrets dashboard before live calls; never place it in Vite variables or commit it.
+
+## Reader translation
+
+Prepared words are loaded from the selected chapter’s newest complete extraction, so a reader never displays candidates from another chapter. For another clicked word, `translate-word` authenticates the caller, checks chapter ownership, finds a short source sentence server-side, and asks Gemini to translate only that word in context. The browser never receives the Gemini key or sends the full chapter to this lookup endpoint.

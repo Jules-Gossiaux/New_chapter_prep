@@ -17,27 +17,34 @@ export type ExtractionErrorCode =
   | 'AI_INVALID_RESPONSE'
   | 'INTERNAL_ERROR';
 
+export type TranslationRequest = {
+  chapterId: string;
+  word: string;
+};
+
+async function responseError(error: { message: string; context?: unknown }) {
+  let payload: { code?: string; message?: string } = {};
+  try {
+    const response = error.context;
+    payload =
+      response instanceof Response
+        ? ((await response.json()) as typeof payload)
+        : JSON.parse(error.message);
+  } catch {
+    /* SDK may return a plain message. */
+  }
+  const extracted = new Error(payload.message ?? error.message);
+  extracted.name = payload.code ?? 'EDGE_FUNCTION_ERROR';
+  throw extracted;
+}
+
 export async function extractVocabulary(input: ExtractionRequest) {
   if (!supabase) throw new Error('SUPABASE_NOT_CONFIGURED');
   const { data, error } = await supabase.functions.invoke(
     'extract-vocabulary',
     { body: input },
   );
-  if (error) {
-    let payload: { code?: ExtractionErrorCode; message?: string } = {};
-    try {
-      const response = (error as { context?: unknown }).context;
-      payload =
-        response instanceof Response
-          ? ((await response.json()) as typeof payload)
-          : JSON.parse(error.message);
-    } catch {
-      /* SDK may return a plain message. */
-    }
-    const extracted = new Error(payload.message ?? error.message);
-    extracted.name = payload.code ?? 'EXTRACTION_ERROR';
-    throw extracted;
-  }
+  if (error) await responseError(error);
   return data as {
     provider: string;
     model: string;
@@ -54,5 +61,21 @@ export async function extractVocabulary(input: ExtractionRequest) {
       confidence: 'High' | 'Medium';
       frequencyRank: number;
     }>;
+  };
+}
+
+export async function translateVocabularyWord(input: TranslationRequest) {
+  if (!supabase) throw new Error('SUPABASE_NOT_CONFIGURED');
+  const { data, error } = await supabase.functions.invoke('translate-word', {
+    body: input,
+  });
+  if (error) await responseError(error);
+  return data as {
+    word: string;
+    translation: string;
+    partOfSpeech: string;
+    lemma: string | null;
+    context: string;
+    confidence: 'High' | 'Medium';
   };
 }

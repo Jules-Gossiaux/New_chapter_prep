@@ -6,4 +6,13 @@ const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
 export const isSupabaseConfigured = Boolean(
   url && key && !url.includes('your-project-ref'),
 );
-export const supabase = isSupabaseConfigured ? createClient(url!, key!) : null;
+export const supabase = isSupabaseConfigured
+  ? createClient(url!, key!, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: 'chapterprep-auth',
+      },
+    })
+  : null;
