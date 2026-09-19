@@ -678,11 +678,16 @@ select:focus-visible {
   display: none;
 }
 [data-theme='dark'] {
-  --ink: #eef4ef;
-  --green: #9bc7ab;
-  --green-deep: #d8eee0;
-  --muted: #b6c3bc;
-  --line: #405148;
+  color-scheme: dark;
+  --ink: #f2f7f3;
+  --green: #75c59a;
+  --green-deep: #d7f5e2;
+  --sage: #253e32;
+  --muted: #a9bbb0;
+  --line: #40574a;
+  --cream: #101713;
+  --white: #19231d;
+  --coral: #f4a27f;
 }
 [data-theme='dark'] .app-shell,
 [data-theme='dark'] .app-main,
@@ -698,7 +703,7 @@ select:focus-visible {
 [data-theme='dark'] .word-panel,
 [data-theme='dark'] .my-words-panel,
 [data-theme='dark'] .reader-help {
-  background: #202d26;
+  background: #19231d;
   border-color: #405148;
 }
 [data-theme='dark'] input,
@@ -707,6 +712,48 @@ select:focus-visible {
   background: #18241e;
   border-color: #405148;
   color: var(--ink);
+}
+[data-theme='dark'] .book-card,
+[data-theme='dark'] .continue-card,
+[data-theme='dark'] .vocab-card,
+[data-theme='dark'] .candidate-card,
+[data-theme='dark'] .mini-word,
+[data-theme='dark'] .workspace-select {
+  background: #1c2921;
+  border-color: #40574a;
+  color: var(--ink);
+}
+[data-theme='dark'] .button-outline {
+  border-color: #587160;
+  color: var(--green-deep);
+}
+[data-theme='dark'] .button-outline:hover {
+  background: #29392f;
+}
+[data-theme='dark'] .reader-word {
+  color: #f5f7f2;
+}
+[data-theme='dark'] .word-highlight {
+  background: #6d5631;
+  color: #fff9e9;
+}
+[data-theme='dark'] .word-highlight.selected {
+  background: var(--coral);
+  color: #24120c;
+}
+[data-theme='dark'] .app-header {
+  border-color: #314539;
+}
+[data-theme='dark'] .nav-item,
+[data-theme='dark'] .sidebar-link,
+[data-theme='dark'] .back-link {
+  color: #b4c7ba;
+}
+[data-theme='dark'] .nav-item.active,
+[data-theme='dark'] .nav-item:hover,
+[data-theme='dark'] .sidebar-link:hover {
+  background: #294535;
+  color: #e8fff0;
 }
 .settings-card h2 {
   margin-top: 0;
@@ -718,6 +765,49 @@ select:focus-visible {
   display: flex;
   gap: 12px;
   margin-top: 22px;
+}
+.editor-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: #0c1510a8;
+  backdrop-filter: blur(7px);
+}
+.editor-modal {
+  width: min(680px, 100%);
+  max-height: min(820px, calc(100vh - 44px));
+  overflow: auto;
+  display: grid;
+  gap: 17px;
+  padding: 28px;
+  border: 1px solid #dfe5dd;
+  border-radius: 18px;
+  background: var(--white);
+  box-shadow: 0 28px 80px #07130d66;
+}
+.editor-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+}
+.editor-modal h2 {
+  margin: 8px 0 0;
+  font-size: 30px;
+  letter-spacing: -0.05em;
+}
+.editor-modal textarea {
+  min-height: 190px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.editor-modal-actions {
+  display: flex;
+  justify-content: end;
+  gap: 10px;
+  padding-top: 5px;
 }
 .auth-tabs {
   display: grid;

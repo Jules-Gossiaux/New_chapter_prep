@@ -896,11 +896,26 @@ function BookDetail({
   selectChapter: (chapter: DemoBook['chapters'][number]) => Promise<void>;
   onDeleteBook: (book: DemoBook) => Promise<void>;
   onDeleteChapter: (chapter: DemoBook['chapters'][number]) => Promise<void>;
-  onEditBook: (book: DemoBook) => Promise<void>;
-  onEditChapter: (chapter: DemoBook['chapters'][number]) => Promise<void>;
+  onEditBook: (
+    book: DemoBook,
+    input: { title: string; author: string; language: string },
+  ) => Promise<void>;
+  onEditChapter: (
+    chapter: DemoBook['chapters'][number],
+    input: {
+      title: string;
+      sourceText: string;
+      language: string;
+      learnerLevel: string;
+    },
+  ) => Promise<void>;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [editingBook, setEditingBook] = useState(false);
+  const [editingChapter, setEditingChapter] = useState<
+    DemoBook['chapters'][number] | null
+  >(null);
   const openChapter = async (chapter: DemoBook['chapters'][number]) => {
     setError(null);
     try {
@@ -975,7 +990,7 @@ function BookDetail({
             </Button>
             <button
               className="delete-action"
-              onClick={() => void onEditBook(book)}
+              onClick={() => setEditingBook(true)}
             >
               Edit book
             </button>
@@ -1026,7 +1041,7 @@ function BookDetail({
               </button>
               <button
                 className="chapter-delete"
-                onClick={() => void onEditChapter(chapter)}
+                onClick={() => setEditingChapter(chapter)}
               >
                 Edit
               </button>
@@ -1055,8 +1070,142 @@ function BookDetail({
             </small>
           </span>
         </div>
+        {editingBook && (
+          <EditorModal
+            book={book}
+            onClose={() => setEditingBook(false)}
+            onSave={(input) =>
+              void onEditBook(book, input).then(() => setEditingBook(false))
+            }
+          />
+        )}
+        {editingChapter && (
+          <EditorModal
+            book={book}
+            chapter={editingChapter}
+            onClose={() => setEditingChapter(null)}
+            onSave={(input) =>
+              void onEditChapter(editingChapter, input).then(() =>
+                setEditingChapter(null),
+              )
+            }
+          />
+        )}
       </main>
     </AppShell>
+  );
+}
+function EditorModal({
+  book,
+  chapter,
+  onClose,
+  onSave,
+}: {
+  book: DemoBook;
+  chapter?: DemoBook['chapters'][number];
+  onClose: () => void;
+  onSave: (input: {
+    title: string;
+    author: string;
+    language: string;
+    learnerLevel: string;
+    sourceText: string;
+  }) => void;
+}) {
+  const [title, setTitle] = useState(chapter?.title ?? book.title);
+  const [author, setAuthor] = useState(book.author);
+  const [language, setLanguage] = useState(chapter?.language ?? book.language);
+  const [learnerLevel, setLearnerLevel] = useState(
+    chapter?.learnerLevel ?? 'B1',
+  );
+  const [sourceText, setSourceText] = useState(chapter?.sourceText ?? '');
+  const isChapter = Boolean(chapter);
+  return (
+    <div
+      className="editor-modal-backdrop"
+      role="presentation"
+      onMouseDown={onClose}
+    >
+      <section
+        className="editor-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={isChapter ? 'Edit chapter' : 'Edit book'}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="editor-modal-head">
+          <div>
+            <span className="kicker">
+              {isChapter ? 'CHAPTER SETTINGS' : 'BOOK SETTINGS'}
+            </span>
+            <h2>{isChapter ? 'Edit chapter' : 'Edit book'}</h2>
+          </div>
+          <button className="panel-close" onClick={onClose}>
+            <Icon name="close" />
+          </button>
+        </div>
+        <label>
+          Title
+          <input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+          />
+        </label>
+        {!isChapter && (
+          <label>
+            Author
+            <input
+              value={author}
+              onChange={(event) => setAuthor(event.target.value)}
+            />
+          </label>
+        )}
+        <label>
+          {isChapter ? 'Chapter language' : 'Default language for new chapters'}
+          <select
+            value={language}
+            onChange={(event) => setLanguage(event.target.value)}
+          >
+            <option>English</option>
+            <option>French</option>
+          </select>
+        </label>
+        {isChapter && (
+          <>
+            <label>
+              Learner level
+              <select
+                value={learnerLevel}
+                onChange={(event) => setLearnerLevel(event.target.value)}
+              >
+                {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map((level) => (
+                  <option key={level}>{level}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Chapter text
+              <textarea
+                value={sourceText}
+                onChange={(event) => setSourceText(event.target.value)}
+              />
+            </label>
+          </>
+        )}
+        <div className="editor-modal-actions">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() =>
+              onSave({ title, author, language, learnerLevel, sourceText })
+            }
+          >
+            Save changes
+          </Button>
+        </div>
+      </section>
+    </div>
   );
 }
 function Status({ status }: { status: string }) {
@@ -2189,16 +2338,11 @@ function App() {
     setSelected(new Set());
     go('library');
   };
-  const editBook = async (book: DemoBook) => {
-    const title = window.prompt('Book title', book.title);
-    if (title === null || !title.trim()) return;
-    const author = window.prompt('Author', book.author);
-    if (author === null) return;
-    const language = window.prompt(
-      'Default language: English or French',
-      book.language,
-    );
-    if (language === null || !['English', 'French'].includes(language)) return;
+  const editBook = async (
+    book: DemoBook,
+    input: { title: string; author: string; language: string },
+  ) => {
+    const { title, author, language } = input;
     const updated = isSupabaseConfigured
       ? backendBookToDemo(
           await updateBackendBook(book.id, {
@@ -2214,23 +2358,17 @@ function App() {
       old.map((item) => (item.id === book.id ? updated : item)),
     );
   };
-  const editChapter = async (chapter: DemoBook['chapters'][number]) => {
+  const editChapter = async (
+    chapter: DemoBook['chapters'][number],
+    input: {
+      title: string;
+      sourceText: string;
+      language: string;
+      learnerLevel: string;
+    },
+  ) => {
     if (!selectedBook) return;
-    const title = window.prompt('Chapter title', chapter.title);
-    if (title === null || !title.trim()) return;
-    const language = window.prompt(
-      'Chapter language: English or French',
-      chapter.language ?? selectedBook.language,
-    );
-    if (language === null || !['English', 'French'].includes(language)) return;
-    const level = window.prompt(
-      'Chapter level: A1, A2, B1, B2, C1, or C2',
-      chapter.learnerLevel ?? 'B1',
-    );
-    if (level === null || !['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(level))
-      return;
-    const sourceText = window.prompt('Chapter text', chapter.sourceText ?? '');
-    if (sourceText === null || !sourceText.trim()) return;
+    const { title, language, sourceText, learnerLevel: level } = input;
     const updatedBackend = isSupabaseConfigured
       ? await updateBackendChapter(chapter.id, {
           number: chapter.number,
