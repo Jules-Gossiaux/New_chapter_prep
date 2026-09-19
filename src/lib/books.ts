@@ -8,6 +8,7 @@ export type BackendBook = {
   targetLanguage: string;
   learnerLevel: string;
   createdAt: string;
+  lastOpenedAt: string;
 };
 
 export type BackendChapter = {
@@ -47,6 +48,7 @@ function mapBook(book: Record<string, unknown>): BackendBook {
     targetLanguage: String(book.target_language),
     learnerLevel: String(book.learner_level),
     createdAt: String(book.created_at),
+    lastOpenedAt: String(book.last_opened_at),
   };
 }
 
@@ -93,9 +95,18 @@ export async function listBooks() {
   const { data, error } = await client
     .from('books')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('last_opened_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((book) => mapBook(book));
+}
+
+export async function markBackendBookOpened(bookId: string) {
+  const { client } = await requireUser();
+  const { error } = await client
+    .from('books')
+    .update({ last_opened_at: new Date().toISOString() })
+    .eq('id', bookId);
+  if (error) throw error;
 }
 
 export async function createBackendBook(input: {

@@ -18,6 +18,7 @@ import {
   listBackendChapterCandidates,
   listBackendChapters,
   listBooks,
+  markBackendBookOpened,
   type BackendBook,
   updateBackendBook,
   updateBackendChapter,
@@ -821,9 +822,6 @@ function Library({
                 Books <span>{books.length}</span>
               </h2>
             </div>
-            <button className="filter-button">
-              Recently opened <Icon name="chevron" />
-            </button>
           </div>
           <div className="book-grid">
             {books.map((book) => (
@@ -2228,6 +2226,19 @@ function App() {
       setCandidateItems(candidates);
       setSelected(new Set(candidates.map((candidate) => candidate.id)));
       return;
+    }
+    if (selectedBook) {
+      const openedBookId = selectedBook.id;
+      void markBackendBookOpened(openedBookId)
+        .then(() =>
+          setBooks((old) => {
+            const openedBook = old.find((book) => book.id === openedBookId);
+            return openedBook
+              ? [openedBook, ...old.filter((book) => book.id !== openedBook.id)]
+              : old;
+          }),
+        )
+        .catch(() => undefined);
     }
     const loaded = await listBackendChapterCandidates(chapter.id);
     const chapterCandidates = loaded.map((candidate) => ({
