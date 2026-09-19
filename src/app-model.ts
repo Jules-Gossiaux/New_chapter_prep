@@ -8,7 +8,8 @@ export type View =
   | 'review'
   | 'prepare'
   | 'reader'
-  | 'vocabulary';
+  | 'vocabulary'
+  | 'settings';
 export type Candidate = {
   id: string;
   bookId: string;
@@ -26,6 +27,8 @@ export type ChapterPreview = {
   words: number;
   status: 'Ready' | 'Not started' | 'In progress';
   sourceText?: string;
+  language?: string;
+  learnerLevel?: string;
 };
 export type DemoBook = {
   id: string;

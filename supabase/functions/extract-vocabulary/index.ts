@@ -185,7 +185,7 @@ Deno.serve(async (request) => {
     const { data: chapter, error: chapterError } = await admin
       .from('chapters')
       .select(
-        'id, source_text, word_count, books!inner(user_id, target_language, learner_level)',
+        'id, source_text, word_count, target_language, learner_level, books!inner(user_id)',
       )
       .eq('id', chapterId)
       .single();
@@ -218,7 +218,7 @@ Deno.serve(async (request) => {
         413,
       );
 
-    const code = languageCode(String(book.target_language ?? ''));
+    const code = languageCode(String(chapter.target_language ?? ''));
     if (!code)
       return json(
         {
@@ -228,7 +228,7 @@ Deno.serve(async (request) => {
         },
         400,
       );
-    const learnerLevel = String(book.learner_level ?? 'B1').toUpperCase();
+    const learnerLevel = String(chapter.learner_level ?? 'B1').toUpperCase();
     const cutoff = levelFrequencyCutoffs[learnerLevel];
     if (!cutoff)
       return json(

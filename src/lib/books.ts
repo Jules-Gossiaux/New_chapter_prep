@@ -18,6 +18,8 @@ export type BackendChapter = {
   sourceText: string;
   wordCount: number;
   extractionStatus: string;
+  targetLanguage: string;
+  learnerLevel: string;
 };
 
 export type BackendVocabularyCandidate = {
@@ -57,6 +59,8 @@ function mapChapter(chapter: Record<string, unknown>): BackendChapter {
     sourceText: String(chapter.source_text),
     wordCount: Number(chapter.word_count),
     extractionStatus: String(chapter.extraction_status),
+    targetLanguage: String(chapter.target_language),
+    learnerLevel: String(chapter.learner_level),
   };
 }
 
@@ -131,6 +135,25 @@ export async function updateBackendBookLevel(
   return mapBook(data);
 }
 
+export async function updateBackendBook(
+  bookId: string,
+  input: { title: string; author: string; targetLanguage: string },
+) {
+  const { client } = await requireUser();
+  const { data, error } = await client
+    .from('books')
+    .update({
+      title: input.title.trim(),
+      author: input.author.trim(),
+      target_language: input.targetLanguage,
+    })
+    .eq('id', bookId)
+    .select()
+    .single();
+  if (error) throw error;
+  return mapBook(data);
+}
+
 export async function deleteBackendBook(bookId: string) {
   const { client } = await requireUser();
   const { data, error } = await client
@@ -159,6 +182,8 @@ export async function createBackendChapter(input: {
   number: number;
   title: string;
   sourceText: string;
+  targetLanguage: string;
+  learnerLevel: string;
 }) {
   const { client } = await requireUser();
   validateChapterWordLimit(input.sourceText);
@@ -170,7 +195,39 @@ export async function createBackendChapter(input: {
       title: input.title.trim(),
       source_text: input.sourceText,
       word_count: countWords(input.sourceText),
+      target_language: input.targetLanguage,
+      learner_level: input.learnerLevel,
     })
+    .select()
+    .single();
+  if (error) throw error;
+  return mapChapter(data);
+}
+
+export async function updateBackendChapter(
+  chapterId: string,
+  input: {
+    number: number;
+    title: string;
+    sourceText: string;
+    targetLanguage: string;
+    learnerLevel: string;
+  },
+) {
+  const { client } = await requireUser();
+  validateChapterWordLimit(input.sourceText);
+  const { data, error } = await client
+    .from('chapters')
+    .update({
+      chapter_number: input.number,
+      title: input.title.trim(),
+      source_text: input.sourceText,
+      word_count: countWords(input.sourceText),
+      target_language: input.targetLanguage,
+      learner_level: input.learnerLevel,
+      extraction_status: 'not_started',
+    })
+    .eq('id', chapterId)
     .select()
     .single();
   if (error) throw error;

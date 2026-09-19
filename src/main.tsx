@@ -19,7 +19,8 @@ import {
   listBackendChapters,
   listBooks,
   type BackendBook,
-  updateBackendBookLevel,
+  updateBackendBook,
+  updateBackendChapter,
 } from './lib/books';
 import { extractVocabulary, translateVocabularyWord } from './lib/extraction';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
@@ -533,7 +534,7 @@ function AppShell({
           />
         </nav>
         <div className="sidebar-bottom">
-          <button className="sidebar-link">
+          <button className="sidebar-link" onClick={() => nav('settings')}>
             <Icon name="settings" /> Settings
           </button>
           <div className="profile">
@@ -887,12 +888,16 @@ function BookDetail({
   selectChapter,
   onDeleteBook,
   onDeleteChapter,
+  onEditBook,
+  onEditChapter,
 }: {
   book: DemoBook;
   go: (view: View) => void;
   selectChapter: (chapter: DemoBook['chapters'][number]) => Promise<void>;
   onDeleteBook: (book: DemoBook) => Promise<void>;
   onDeleteChapter: (chapter: DemoBook['chapters'][number]) => Promise<void>;
+  onEditBook: (book: DemoBook) => Promise<void>;
+  onEditChapter: (chapter: DemoBook['chapters'][number]) => Promise<void>;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -970,6 +975,12 @@ function BookDetail({
             </Button>
             <button
               className="delete-action"
+              onClick={() => void onEditBook(book)}
+            >
+              Edit book
+            </button>
+            <button
+              className="delete-action"
               onClick={removeBook}
               disabled={deleting === book.id}
             >
@@ -1015,6 +1026,12 @@ function BookDetail({
               </button>
               <button
                 className="chapter-delete"
+                onClick={() => void onEditChapter(chapter)}
+              >
+                Edit
+              </button>
+              <button
+                className="chapter-delete"
                 onClick={() => void removeChapter(chapter)}
                 disabled={deleting === chapter.id}
                 aria-label={`Delete ${chapter.title}`}
@@ -1056,7 +1073,6 @@ function ChapterSetup({
   go,
   onExtract,
   onCreateChapter,
-  onChangeLevel,
   nextChapterNumber,
 }: {
   book: DemoBook;
@@ -1069,12 +1085,14 @@ function ChapterSetup({
     number: number;
     title: string;
     sourceText: string;
+    targetLanguage: string;
+    learnerLevel: string;
   }) => Promise<DemoBook['chapters'][number]>;
-  onChangeLevel: (level: string) => Promise<void>;
   nextChapterNumber: number;
 }) {
   const [text, setText] = useState('');
-  const [level, setLevel] = useState(book.level);
+  const [level, setLevel] = useState('B1');
+  const [language, setLanguage] = useState(book.language);
   const [amount, setAmount] = useState(5);
   const [error, setError] = useState('');
   const [chapterNumber, setChapterNumber] = useState(nextChapterNumber);
@@ -1127,22 +1145,20 @@ function ChapterSetup({
             </label>
           </div>
           <label className="select-label">
+            Chapter language
+            <select
+              value={language}
+              onChange={(event) => setLanguage(event.target.value)}
+            >
+              <option value="English">English</option>
+              <option value="French">French</option>
+            </select>
+          </label>
+          <label className="select-label">
             Your current level
             <select
               value={level}
-              onChange={(event) => {
-                const nextLevel = event.target.value;
-                setLevel(nextLevel);
-                setError('');
-                void onChangeLevel(nextLevel).catch((levelError) => {
-                  setLevel(book.level);
-                  setError(
-                    levelError instanceof Error
-                      ? levelError.message
-                      : 'Unable to update your level.',
-                  );
-                });
-              }}
+              onChange={(event) => setLevel(event.target.value)}
             >
               <option value="A1">A1 · Beginner</option>
               <option value="A2">A2 · Elementary</option>
@@ -1225,6 +1241,8 @@ function ChapterSetup({
                   number: chapterNumber,
                   title: chapterTitle,
                   sourceText: text,
+                  targetLanguage: language,
+                  learnerLevel: level,
                 })
                   .then((chapter) =>
                     onExtract({
@@ -1258,12 +1276,14 @@ function Review({
   toggle,
   candidateItems,
   notice,
+  onSave,
 }: {
   go: (view: View) => void;
   selected: Set<string>;
   toggle: (id: string) => void;
   candidateItems: Candidate[];
   notice: string | null;
+  onSave: () => void;
 }) {
   const [query, setQuery] = useState('');
   const visible = candidateItems.filter((c) =>
@@ -1336,7 +1356,12 @@ function Review({
             <Icon name="bookmark" /> These words will be available in your
             reader.
           </span>
-          <Button onClick={() => go('prepare')}>
+          <Button
+            onClick={() => {
+              onSave();
+              go('prepare');
+            }}
+          >
             Save {selected.size} words <Icon name="arrow" />
           </Button>
         </div>
@@ -1801,14 +1826,16 @@ function exportWords(
 function Vocabulary({
   go,
   saved,
+  setSaved,
   candidateItems,
 }: {
   go: (view: View) => void;
   saved: Set<string>;
+  setSaved: (word: string) => void;
   candidateItems: Candidate[];
 }) {
   const [query, setQuery] = useState('');
-  const [bookFilter, setBookFilter] = useState('little-prince');
+  const [bookFilter, setBookFilter] = useState('all');
   const [sort, setSort] = useState('newest');
   const filteredWords = Array.from(saved)
     .map((word) => getWordDetails(word, candidateItems))
@@ -1886,7 +1913,12 @@ function Vocabulary({
                   <b>{word.translation}</b>
                   <small>{word.context}</small>
                 </span>
-                <button className="vocab-more">•••</button>
+                <button
+                  className="vocab-more"
+                  onClick={() => setSaved(word.word)}
+                >
+                  Remove
+                </button>
               </article>
             ))
           ) : (
@@ -1930,6 +1962,9 @@ function Vocabulary({
 function App() {
   const [view, setView] = useState<View>('landing');
   const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
+    localStorage.getItem('chapterprep-theme') === 'dark' ? 'dark' : 'light',
+  );
   const [books, setBooks] = useState<DemoBook[]>(
     isSupabaseConfigured ? [] : demoBooks,
   );
@@ -1953,6 +1988,10 @@ function App() {
       : new Set(['discerning', 'unsettling', 'to linger', 'faintly']),
   );
   const go = (next: View) => setView(next);
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('chapterprep-theme', theme);
+  }, [theme]);
   const toggle = (id: string) =>
     setSelected((old) => {
       const next = new Set(old);
@@ -1989,6 +2028,8 @@ function App() {
             title: chapter.title,
             words: chapter.wordCount,
             sourceText: chapter.sourceText,
+            language: chapter.targetLanguage,
+            learnerLevel: chapter.learnerLevel,
             status:
               chapter.extractionStatus === 'complete'
                 ? ('Ready' as const)
@@ -2022,9 +2063,7 @@ function App() {
     });
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active || !session) return;
-      void refreshBooks().finally(() => {
-        if (active) setView('library');
-      });
+      void refreshBooks();
     });
     return () => {
       active = false;
@@ -2091,6 +2130,8 @@ function App() {
     number: number;
     title: string;
     sourceText: string;
+    targetLanguage: string;
+    learnerLevel: string;
   }) => {
     if (!selectedBook) throw new Error('SELECT_BOOK_REQUIRED');
     const chapter = isSupabaseConfigured
@@ -2099,6 +2140,8 @@ function App() {
           number: input.number,
           title: input.title,
           sourceText: input.sourceText,
+          targetLanguage: input.targetLanguage,
+          learnerLevel: input.learnerLevel,
         })
       : {
           id: `chapter-${Date.now()}`,
@@ -2106,6 +2149,8 @@ function App() {
           title: input.title,
           words: countWords(input.sourceText),
           status: 'Not started' as const,
+          language: input.targetLanguage,
+          learnerLevel: input.learnerLevel,
         };
     const createdChapter = {
       id: chapter.id,
@@ -2115,6 +2160,12 @@ function App() {
       sourceText:
         'sourceText' in chapter ? chapter.sourceText : input.sourceText,
       status: 'Not started' as const,
+      language:
+        'targetLanguage' in chapter
+          ? chapter.targetLanguage
+          : input.targetLanguage,
+      learnerLevel:
+        'learnerLevel' in chapter ? chapter.learnerLevel : input.learnerLevel,
     };
     const nextBook = {
       ...selectedBook,
@@ -2129,19 +2180,6 @@ function App() {
     );
     return createdChapter;
   };
-  const changeBookLevel = async (level: string) => {
-    if (!selectedBook) throw new Error('SELECT_BOOK_REQUIRED');
-    const updated = isSupabaseConfigured
-      ? backendBookToDemo(
-          await updateBackendBookLevel(selectedBook.id, level),
-          selectedBook.chapters,
-        )
-      : { ...selectedBook, level };
-    setSelectedBook(updated);
-    setBooks((old) =>
-      old.map((book) => (book.id === updated.id ? updated : book)),
-    );
-  };
   const removeBook = async (book: DemoBook) => {
     if (isSupabaseConfigured) await deleteBackendBook(book.id);
     setBooks((old) => old.filter((item) => item.id !== book.id));
@@ -2150,6 +2188,77 @@ function App() {
     setCandidateItems([]);
     setSelected(new Set());
     go('library');
+  };
+  const editBook = async (book: DemoBook) => {
+    const title = window.prompt('Book title', book.title);
+    if (title === null || !title.trim()) return;
+    const author = window.prompt('Author', book.author);
+    if (author === null) return;
+    const language = window.prompt(
+      'Default language: English or French',
+      book.language,
+    );
+    if (language === null || !['English', 'French'].includes(language)) return;
+    const updated = isSupabaseConfigured
+      ? backendBookToDemo(
+          await updateBackendBook(book.id, {
+            title,
+            author,
+            targetLanguage: language,
+          }),
+          book.chapters,
+        )
+      : { ...book, title, author, language };
+    setSelectedBook(updated);
+    setBooks((old) =>
+      old.map((item) => (item.id === book.id ? updated : item)),
+    );
+  };
+  const editChapter = async (chapter: DemoBook['chapters'][number]) => {
+    if (!selectedBook) return;
+    const title = window.prompt('Chapter title', chapter.title);
+    if (title === null || !title.trim()) return;
+    const language = window.prompt(
+      'Chapter language: English or French',
+      chapter.language ?? selectedBook.language,
+    );
+    if (language === null || !['English', 'French'].includes(language)) return;
+    const level = window.prompt(
+      'Chapter level: A1, A2, B1, B2, C1, or C2',
+      chapter.learnerLevel ?? 'B1',
+    );
+    if (level === null || !['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(level))
+      return;
+    const sourceText = window.prompt('Chapter text', chapter.sourceText ?? '');
+    if (sourceText === null || !sourceText.trim()) return;
+    const updatedBackend = isSupabaseConfigured
+      ? await updateBackendChapter(chapter.id, {
+          number: chapter.number,
+          title,
+          sourceText,
+          targetLanguage: language,
+          learnerLevel: level,
+        })
+      : null;
+    const updated = {
+      ...chapter,
+      title,
+      sourceText,
+      words: updatedBackend?.wordCount ?? countWords(sourceText),
+      language,
+      learnerLevel: level,
+      status: 'Not started' as const,
+    };
+    const nextBook = {
+      ...selectedBook,
+      chapters: selectedBook.chapters.map((item) =>
+        item.id === chapter.id ? updated : item,
+      ),
+    };
+    setSelectedBook(nextBook);
+    setBooks((old) =>
+      old.map((item) => (item.id === nextBook.id ? nextBook : item)),
+    );
   };
   const removeChapter = async (chapter: DemoBook['chapters'][number]) => {
     if (!selectedBook) throw new Error('SELECT_BOOK_REQUIRED');
@@ -2209,6 +2318,33 @@ function App() {
     if (!authReady) return null;
     if (view === 'landing') return <Landing go={go} />;
     if (view === 'auth') return <Auth go={go} />;
+    if (view === 'settings')
+      return (
+        <AppShell view="settings" go={go}>
+          <main className="content narrow">
+            <span className="kicker">APPLICATION SETTINGS</span>
+            <h1>Make ChapterPrep yours.</h1>
+            <section className="setup-card settings-card">
+              <h2>Appearance</h2>
+              <p>Choose the interface that is easiest on your eyes.</p>
+              <div className="theme-options">
+                <Button
+                  variant={theme === 'light' ? 'primary' : 'outline'}
+                  onClick={() => setTheme('light')}
+                >
+                  Light mode
+                </Button>
+                <Button
+                  variant={theme === 'dark' ? 'primary' : 'outline'}
+                  onClick={() => setTheme('dark')}
+                >
+                  Dark mode
+                </Button>
+              </div>
+            </section>
+          </main>
+        </AppShell>
+      );
     if (view === 'library')
       return (
         <Library
@@ -2227,6 +2363,8 @@ function App() {
           selectChapter={openChapter}
           onDeleteBook={removeBook}
           onDeleteChapter={removeChapter}
+          onEditBook={editBook}
+          onEditChapter={editChapter}
         />
       ) : (
         <Library
@@ -2243,7 +2381,6 @@ function App() {
           go={go}
           onExtract={extractChapter}
           onCreateChapter={createChapter}
-          onChangeLevel={changeBookLevel}
           nextChapterNumber={
             Math.max(
               0,
@@ -2267,6 +2404,11 @@ function App() {
           toggle={toggle}
           candidateItems={candidateItems}
           notice={extractionNotice}
+          onSave={() =>
+            candidateItems
+              .filter((candidate) => selected.has(candidate.id))
+              .forEach((candidate) => saveWord(candidate.word))
+          }
         />
       );
     if (view === 'prepare')
@@ -2290,6 +2432,8 @@ function App() {
           selectChapter={openChapter}
           onDeleteBook={removeBook}
           onDeleteChapter={removeChapter}
+          onEditBook={editBook}
+          onEditChapter={editChapter}
         />
       ) : (
         <Library
@@ -2299,7 +2443,14 @@ function App() {
           userLabel={userLabel}
         />
       );
-    return <Vocabulary go={go} saved={saved} candidateItems={candidateItems} />;
+    return (
+      <Vocabulary
+        go={go}
+        saved={saved}
+        setSaved={saveWord}
+        candidateItems={candidateItems}
+      />
+    );
   }, [
     view,
     books,
@@ -2311,6 +2462,7 @@ function App() {
     candidateItems,
     extractionNotice,
     authReady,
+    theme,
   ]);
   return page;
 }

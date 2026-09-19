@@ -677,6 +677,48 @@ select:focus-visible {
 .auth-mobile-logo {
   display: none;
 }
+[data-theme='dark'] {
+  --ink: #eef4ef;
+  --green: #9bc7ab;
+  --green-deep: #d8eee0;
+  --muted: #b6c3bc;
+  --line: #405148;
+}
+[data-theme='dark'] .app-shell,
+[data-theme='dark'] .app-main,
+[data-theme='dark'] .content,
+[data-theme='dark'] .reader-page {
+  background: #16211c;
+}
+[data-theme='dark'] .sidebar,
+[data-theme='dark'] .app-header,
+[data-theme='dark'] .setup-card,
+[data-theme='dark'] .chapter-card,
+[data-theme='dark'] .reading-paper,
+[data-theme='dark'] .word-panel,
+[data-theme='dark'] .my-words-panel,
+[data-theme='dark'] .reader-help {
+  background: #202d26;
+  border-color: #405148;
+}
+[data-theme='dark'] input,
+[data-theme='dark'] textarea,
+[data-theme='dark'] select {
+  background: #18241e;
+  border-color: #405148;
+  color: var(--ink);
+}
+.settings-card h2 {
+  margin-top: 0;
+}
+.settings-card p {
+  color: var(--muted);
+}
+.theme-options {
+  display: flex;
+  gap: 12px;
+  margin-top: 22px;
+}
 .auth-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
