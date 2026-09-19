@@ -20,6 +20,7 @@ The frontend uses a calm editorial interface: warm paper neutrals, deep forest i
 - The reader keeps the original text dominant. Only selected vocabulary is highlighted.
 - Desktop uses a persistent sidebar; mobile collapses it into a drawer with touch-sized controls.
 - Keyboard focus is visible with a coral outline.
+- Dark mode is a distinct charcoal-and-forest palette, not an inverted paper theme: page, sidebar, elevated cards, controls, muted copy, borders, and selected states each receive dedicated dark tokens. Body copy and headings must retain high contrast against every dark surface.
 
 ## Frontend prototype scope
 
