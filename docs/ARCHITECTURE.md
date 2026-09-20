@@ -18,6 +18,8 @@ The app is a React/Vite client with domain-first TypeScript modules:
 
 `src/lib/supabase.ts` is configuration-safe: the app remains in preview mode without `.env.local`. Its explicit browser auth settings persist and refresh the Supabase session; app bootstrap restores a valid session to the library. `src/lib/auth.ts` uses Supabase email/password Auth when configured and retains a clearly labelled preview fallback otherwise. `src/lib/books.ts` requires an authenticated user before querying or mutating user-owned data. Persisted books have a `last_opened_at` timestamp, updated when the reader opens one of their chapters and indexed with `user_id`; the library is always returned in that reading order.
 
+Accepted vocabulary is persisted in `vocabulary_entries` and linked to its source chapter through `chapter_vocabulary`. The application loads that user-owned list at session restore, derives the sidebar badge from it, and uses the same list for filtering, removal, and CSV export. This deliberately avoids deriving global vocabulary from the transient candidates of the last chapter opened. `20260920192220_backfill_extracted_vocabulary.sql` imports the newest completed extraction for each existing chapter, preserving already prepared vocabulary after the persistence fix.
+
 Source chapter text is canonical and stored on `Chapter`; extraction runs, candidates, accepted chapter vocabulary, global entries, annotations, progress, and exports will be separate entities as those milestones land. Every extraction result must carry source chapter/run/config metadata. Local-first anonymous use is the selected default; account/sync remains an open decision.
 
 ## Feasibility note

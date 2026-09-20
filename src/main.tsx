@@ -15,10 +15,14 @@ import {
   createBackendChapter,
   deleteBackendBook,
   deleteBackendChapter,
+  deleteBackendVocabularyEntry,
   listBackendChapterCandidates,
   listBackendChapters,
   listBooks,
+  listBackendVocabularyEntries,
   markBackendBookOpened,
+  saveBackendVocabularyEntries,
+  type BackendVocabularyEntry,
   type BackendBook,
   updateBackendBook,
   updateBackendChapter,
@@ -478,6 +482,8 @@ function Auth({ go }: { go: (view: View) => void }) {
   );
 }
 
+const VocabularyCountContext = React.createContext(0);
+
 function AppShell({
   children,
   view,
@@ -489,7 +495,8 @@ function AppShell({
   go: (view: View) => void;
   savedCount?: number;
 }) {
-  savedCount = savedCount ?? 4;
+  const vocabularyCount = React.useContext(VocabularyCountContext);
+  savedCount = savedCount ?? vocabularyCount;
   const [open, setOpen] = useState(false);
   const nav = (target: View) => {
     go(target);
@@ -518,12 +525,6 @@ function AppShell({
             icon="grid"
             label="Overview"
             active={view === 'library'}
-            onClick={() => nav('library')}
-          />
-          <NavItem
-            icon="book"
-            label="My books"
-            active={view === 'book'}
             onClick={() => nav('library')}
           />
           <NavItem
@@ -1429,9 +1430,11 @@ function Review({
   toggle: (id: string) => void;
   candidateItems: Candidate[];
   notice: string | null;
-  onSave: () => void;
+  onSave: () => Promise<void>;
 }) {
   const [query, setQuery] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const visible = candidateItems.filter((c) =>
     c.word.toLowerCase().includes(query.toLowerCase()),
   );
@@ -1503,14 +1506,27 @@ function Review({
             reader.
           </span>
           <Button
+            disabled={saving}
             onClick={() => {
-              onSave();
-              go('prepare');
+              setSaving(true);
+              setSaveError(null);
+              void onSave()
+                .then(() => go('prepare'))
+                .catch(() =>
+                  setSaveError('Unable to save these words. Please retry.'),
+                )
+                .finally(() => setSaving(false));
             }}
           >
-            Save {selected.size} words <Icon name="arrow" />
+            {saving ? 'Saving…' : `Save ${selected.size} words`}{' '}
+            <Icon name="arrow" />
           </Button>
         </div>
+        {saveError && (
+          <p className="form-error" role="alert">
+            {saveError}
+          </p>
+        )}
       </main>
     </AppShell>
   );
@@ -1636,6 +1652,29 @@ type WordDetails = Pick<
   | 'bookId'
 >;
 
+type SavedVocabularyItem = WordDetails & {
+  id: string;
+  bookTitle: string;
+  createdAt: string;
+};
+
+function toSavedVocabularyItem(
+  entry: BackendVocabularyEntry,
+): SavedVocabularyItem {
+  return {
+    id: entry.id,
+    word: entry.word,
+    translation: entry.translation,
+    partOfSpeech: entry.partOfSpeech,
+    level: '—',
+    context: entry.context,
+    confidence: 'Medium',
+    bookId: entry.bookId,
+    bookTitle: entry.bookTitle,
+    createdAt: entry.createdAt,
+  };
+}
+
 const lookupTranslations: Record<
   string,
   { translation: string; partOfSpeech: string }
@@ -1738,14 +1777,16 @@ function tokenizeReaderText(
 function Reader({
   go,
   saved,
-  setSaved,
+  onSaveWord,
+  vocabularyEntries,
   book,
   chapter,
   candidateItems,
 }: {
   go: (view: View) => void;
   saved: Set<string>;
-  setSaved: (word: string) => void;
+  onSaveWord: (word: WordDetails) => Promise<void>;
+  vocabularyEntries: SavedVocabularyItem[];
   book: DemoBook;
   chapter: DemoBook['chapters'][number];
   candidateItems: Candidate[];
@@ -1765,6 +1806,14 @@ function Reader({
   const paragraphs = chapter.sourceText
     ? chapter.sourceText.split(/\n{2,}/).filter(Boolean)
     : readerParagraphs;
+  const exportEntries = isSupabaseConfigured
+    ? vocabularyEntries
+    : Array.from(saved).map((word) => ({
+        ...getWordDetails(word, candidateItems),
+        id: word,
+        bookTitle: book.title,
+        createdAt: '',
+      }));
   return (
     <AppShell view="reader" go={go} savedCount={saved.size}>
       <main className="reader-page">
@@ -1788,7 +1837,7 @@ function Reader({
             <button onClick={() => go('vocabulary')}>
               <Icon name="bookmark" />
             </button>
-            <button onClick={() => exportWords(saved, candidateItems, book.id)}>
+            <button onClick={() => exportVocabulary(exportEntries, book.id)}>
               <Icon name="download" />
             </button>
           </div>
@@ -1883,7 +1932,13 @@ function Reader({
                   <Button
                     className="full-button"
                     variant={saved.has(active.word) ? 'soft' : 'primary'}
-                    onClick={() => setSaved(active.word)}
+                    onClick={() =>
+                      void onSaveWord(active).catch(() =>
+                        setTranslationError(
+                          'Unable to save this word. Please retry.',
+                        ),
+                      )
+                    }
                   >
                     {saved.has(active.word) ? (
                       <>
@@ -1946,17 +2001,11 @@ function Reader({
     </AppShell>
   );
 }
-function exportWords(
-  saved: Set<string>,
-  candidateItems: Candidate[],
-  bookId?: string,
-) {
-  const rows = Array.from(saved)
-    .map((word) => getWordDetails(word, candidateItems))
-    .filter((word) => !bookId || word.bookId === bookId);
+function exportVocabulary(entries: SavedVocabularyItem[], bookId?: string) {
+  const rows = entries.filter((entry) => !bookId || entry.bookId === bookId);
   const csv = [
     ['Front', 'Back', 'Context'],
-    ...rows.map((c) => [c.word, c.translation, c.context]),
+    ...rows.map((entry) => [entry.word, entry.translation, entry.context]),
   ]
     .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(','))
     .join('\n');
@@ -1972,24 +2021,34 @@ function exportWords(
 function Vocabulary({
   go,
   saved,
-  setSaved,
+  entries,
+  onRemove,
   candidateItems,
 }: {
   go: (view: View) => void;
   saved: Set<string>;
-  setSaved: (word: string) => void;
+  entries: SavedVocabularyItem[];
+  onRemove: (entry: SavedVocabularyItem) => Promise<void>;
   candidateItems: Candidate[];
 }) {
   const [query, setQuery] = useState('');
   const [bookFilter, setBookFilter] = useState('all');
   const [sort, setSort] = useState('newest');
-  const filteredWords = Array.from(saved)
-    .map((word) => getWordDetails(word, candidateItems))
-    .filter(
-      (word) =>
-        (bookFilter === 'all' || word.bookId === bookFilter) &&
-        word.word.toLowerCase().includes(query.toLowerCase()),
-    );
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const savedWords = isSupabaseConfigured
+    ? entries
+    : Array.from(saved).map((word) => ({
+        ...getWordDetails(word, candidateItems),
+        id: word,
+        bookTitle: 'The Little Prince',
+        createdAt: '',
+      }));
+  const filteredWords = savedWords.filter(
+    (word) =>
+      (bookFilter === 'all' || word.bookId === bookFilter) &&
+      word.word.toLowerCase().includes(query.toLowerCase()),
+  );
   const words = [...filteredWords].sort((a, b) =>
     sort === 'alphabetical' ? a.word.localeCompare(b.word) : 0,
   );
@@ -2004,9 +2063,8 @@ function Vocabulary({
           </div>
           <Button
             onClick={() =>
-              exportWords(
-                saved,
-                candidateItems,
+              exportVocabulary(
+                savedWords,
                 bookFilter === 'all' ? undefined : bookFilter,
               )
             }
@@ -2028,8 +2086,16 @@ function Vocabulary({
               value={bookFilter}
               onChange={(event) => setBookFilter(event.target.value)}
             >
-              <option value="little-prince">The Little Prince</option>
               <option value="all">All books</option>
+              {Array.from(
+                new Map(
+                  savedWords.map((word) => [word.bookId, word.bookTitle]),
+                ),
+              ).map(([bookId, bookTitle]) => (
+                <option key={bookId} value={bookId}>
+                  {bookTitle}
+                </option>
+              ))}
             </select>
             <Icon name="chevron" />
           </label>
@@ -2053,7 +2119,9 @@ function Vocabulary({
                 </span>
                 <span className="vocab-word">
                   <b>{word.word}</b>
-                  <small>{word.partOfSpeech} · The Little Prince</small>
+                  <small>
+                    {word.partOfSpeech} · {word.bookTitle}
+                  </small>
                 </span>
                 <span className="vocab-meaning">
                   <b>{word.translation}</b>
@@ -2061,9 +2129,20 @@ function Vocabulary({
                 </span>
                 <button
                   className="vocab-more"
-                  onClick={() => setSaved(word.word)}
+                  disabled={removingId === word.id}
+                  onClick={() => {
+                    setRemovingId(word.id);
+                    setRemoveError(null);
+                    void onRemove(word)
+                      .catch(() =>
+                        setRemoveError(
+                          'Unable to remove this word. Please retry.',
+                        ),
+                      )
+                      .finally(() => setRemovingId(null));
+                  }}
                 >
-                  Remove
+                  {removingId === word.id ? 'Removing…' : 'Remove'}
                 </button>
               </article>
             ))
@@ -2080,6 +2159,11 @@ function Vocabulary({
             </div>
           )}
         </section>
+        {removeError && (
+          <p className="form-error" role="alert">
+            {removeError}
+          </p>
+        )}
         <div className="export-note">
           <Icon name="download" />
           <span>
@@ -2090,9 +2174,8 @@ function Vocabulary({
           </span>
           <button
             onClick={() =>
-              exportWords(
-                saved,
-                candidateItems,
+              exportVocabulary(
+                savedWords,
                 bookFilter === 'all' ? undefined : bookFilter,
               )
             }
@@ -2133,6 +2216,9 @@ function App() {
       ? new Set()
       : new Set(['discerning', 'unsettling', 'to linger', 'faintly']),
   );
+  const [vocabularyEntries, setVocabularyEntries] = useState<
+    SavedVocabularyItem[]
+  >([]);
   const go = (next: View) => setView(next);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -2144,12 +2230,45 @@ function App() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
-  const saveWord = (word: string) =>
+  const refreshVocabulary = async () => {
+    if (!isSupabaseConfigured) return;
+    const entries = (await listBackendVocabularyEntries()).map(
+      toSavedVocabularyItem,
+    );
+    setVocabularyEntries(entries);
+    setSaved(new Set(entries.map((entry) => entry.word)));
+  };
+
+  const saveWord = async (word: WordDetails) => {
+    if (!isSupabaseConfigured) {
+      setSaved((old) => new Set(old).add(word.word));
+      return;
+    }
+    if (!selectedChapter) throw new Error('SELECT_CHAPTER_REQUIRED');
+    await saveBackendVocabularyEntries({
+      chapterId: selectedChapter.id,
+      entries: [word],
+    });
+    await refreshVocabulary();
+  };
+
+  const removeVocabularyWord = async (entry: SavedVocabularyItem) => {
+    if (!isSupabaseConfigured) {
+      setSaved((old) => {
+        const next = new Set(old);
+        next.delete(entry.word);
+        return next;
+      });
+      return;
+    }
+    await deleteBackendVocabularyEntry(entry.id);
+    setVocabularyEntries((old) => old.filter((word) => word.id !== entry.id));
     setSaved((old) => {
       const next = new Set(old);
-      next.has(word) ? next.delete(word) : next.add(word);
+      next.delete(entry.word);
       return next;
     });
+  };
 
   const refreshBooks = async () => {
     if (!isSupabaseConfigured) return;
@@ -2159,6 +2278,8 @@ function App() {
       setBooks([]);
       setSelectedBook(null);
       setSelectedChapter(null);
+      setVocabularyEntries([]);
+      setSaved(new Set());
       return false;
     }
     setUserLabel(user.email ?? 'Reader');
@@ -2201,7 +2322,7 @@ function App() {
         setAuthReady(true);
         return;
       }
-      void refreshBooks().finally(() => {
+      void Promise.all([refreshBooks(), refreshVocabulary()]).finally(() => {
         if (!active) return;
         setView('library');
         setAuthReady(true);
@@ -2209,7 +2330,7 @@ function App() {
     });
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!active || !session) return;
-      void refreshBooks();
+      void Promise.all([refreshBooks(), refreshVocabulary()]);
     });
     return () => {
       active = false;
@@ -2552,11 +2673,28 @@ function App() {
           toggle={toggle}
           candidateItems={candidateItems}
           notice={extractionNotice}
-          onSave={() =>
-            candidateItems
-              .filter((candidate) => selected.has(candidate.id))
-              .forEach((candidate) => saveWord(candidate.word))
-          }
+          onSave={async () => {
+            const selectedCandidates = candidateItems.filter((candidate) =>
+              selected.has(candidate.id),
+            );
+            if (!isSupabaseConfigured) {
+              setSaved(
+                (old) =>
+                  new Set([
+                    ...old,
+                    ...selectedCandidates.map((candidate) => candidate.word),
+                  ]),
+              );
+              return;
+            }
+            if (!selectedChapter) throw new Error('SELECT_CHAPTER_REQUIRED');
+            await saveBackendVocabularyEntries({
+              chapterId: selectedChapter.id,
+              entries: selectedCandidates,
+              candidateIds: selectedCandidates.map((candidate) => candidate.id),
+            });
+            await refreshVocabulary();
+          }}
         />
       );
     if (view === 'prepare')
@@ -2568,7 +2706,8 @@ function App() {
         <Reader
           go={go}
           saved={saved}
-          setSaved={saveWord}
+          onSaveWord={saveWord}
+          vocabularyEntries={vocabularyEntries}
           book={selectedBook}
           chapter={selectedChapter}
           candidateItems={candidateItems}
@@ -2595,7 +2734,8 @@ function App() {
       <Vocabulary
         go={go}
         saved={saved}
-        setSaved={saveWord}
+        entries={vocabularyEntries}
+        onRemove={removeVocabularyWord}
         candidateItems={candidateItems}
       />
     );
@@ -2612,6 +2752,10 @@ function App() {
     authReady,
     theme,
   ]);
-  return page;
+  return (
+    <VocabularyCountContext.Provider value={saved.size}>
+      {page}
+    </VocabularyCountContext.Provider>
+  );
 }
 createRoot(document.getElementById('root')!).render(<App />);

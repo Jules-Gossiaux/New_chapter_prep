@@ -21,3 +21,7 @@ Keep the OpenSubtitles attribution and its CC BY 3.0 licensing requirements when
 ## Reader translation
 
 Prepared words are loaded from the selected chapter’s newest complete extraction, so a reader never displays candidates from another chapter. For another clicked word, `translate-word` authenticates the caller, checks chapter ownership, finds a short source sentence server-side, and asks Gemini to translate only that word in context. The browser never receives the Gemini key or sends the full chapter to this lookup endpoint.
+
+## Saved vocabulary
+
+Saving words from the review or reader writes user-owned `vocabulary_entries` and their `chapter_vocabulary` links. The Vocabulary page and its sidebar count load those persisted records across every book and chapter; they never depend on the currently open chapter. Removing a word deletes the user’s vocabulary entry and its links through the existing foreign-key cascade.

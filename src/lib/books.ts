@@ -35,9 +35,32 @@ export type BackendVocabularyCandidate = {
   frequencyRank: number;
 };
 
+export type BackendVocabularyEntry = {
+  id: string;
+  word: string;
+  translation: string;
+  partOfSpeech: string;
+  context: string;
+  bookId: string;
+  bookTitle: string;
+  createdAt: string;
+};
+
 function requireClient() {
   if (!supabase) throw new Error('SUPABASE_NOT_CONFIGURED');
   return supabase;
+}
+
+export function uniqueVocabularyEntries<T extends { word: string }>(
+  entries: T[],
+) {
+  return Array.from(
+    new Map(
+      entries
+        .filter((entry) => entry.word.trim())
+        .map((entry) => [entry.word.trim().toLocaleLowerCase(), entry]),
+    ).values(),
+  );
 }
 
 function mapBook(book: Record<string, unknown>): BackendBook {
@@ -279,4 +302,111 @@ export async function listBackendChapterCandidates(chapterId: string) {
   return (data ?? []).map((candidate) =>
     mapVocabularyCandidate(candidate, chapterId),
   );
+}
+
+export async function listBackendVocabularyEntries() {
+  const { client } = await requireUser();
+  const { data: entries, error: entriesError } = await client
+    .from('vocabulary_entries')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (entriesError) throw entriesError;
+  if (!entries?.length) return [] as BackendVocabularyEntry[];
+
+  const entryIds = entries.map((entry) => String(entry.id));
+  const { data: links, error: linksError } = await client
+    .from('chapter_vocabulary')
+    .select(
+      'vocabulary_entry_id, source_context, chapters!inner(book_id, title, books!inner(id, title))',
+    )
+    .in('vocabulary_entry_id', entryIds);
+  if (linksError) throw linksError;
+
+  const linkByEntryId = new Map(
+    (links ?? []).map((link) => [String(link.vocabulary_entry_id), link]),
+  );
+  return entries.map((entry) => {
+    const link = linkByEntryId.get(String(entry.id));
+    const chapter = (link?.chapters ?? {}) as Record<string, unknown>;
+    const book = (chapter.books ?? {}) as Record<string, unknown>;
+    return {
+      id: String(entry.id),
+      word: String(entry.word),
+      translation: String(entry.translation ?? 'Translation unavailable'),
+      partOfSpeech: String(entry.notes ?? 'word'),
+      context: String(link?.source_context ?? ''),
+      bookId: String(book.id ?? chapter.book_id ?? ''),
+      bookTitle: String(book.title ?? 'Unknown book'),
+      createdAt: String(entry.created_at),
+    };
+  });
+}
+
+export async function saveBackendVocabularyEntries(input: {
+  chapterId: string;
+  entries: Array<
+    Pick<
+      BackendVocabularyEntry,
+      'word' | 'translation' | 'partOfSpeech' | 'context'
+    >
+  >;
+  candidateIds?: string[];
+}) {
+  if (!input.entries.length) return;
+  const { client, user } = await requireUser();
+  const entriesToSave = uniqueVocabularyEntries(input.entries);
+  if (!entriesToSave.length) return;
+  const { data: entries, error: entriesError } = await client
+    .from('vocabulary_entries')
+    .upsert(
+      entriesToSave.map((entry) => ({
+        user_id: user.id,
+        word: entry.word.trim(),
+        translation: entry.translation,
+        notes: entry.partOfSpeech,
+      })),
+      { onConflict: 'user_id,word' },
+    )
+    .select('id, word');
+  if (entriesError) throw entriesError;
+
+  const entryByWord = new Map(
+    (entries ?? []).map((entry) => [String(entry.word), String(entry.id)]),
+  );
+  const { error: linksError } = await client.from('chapter_vocabulary').upsert(
+    entriesToSave.flatMap((entry) => {
+      const vocabularyEntryId = entryByWord.get(entry.word.trim());
+      return vocabularyEntryId
+        ? [
+            {
+              chapter_id: input.chapterId,
+              vocabulary_entry_id: vocabularyEntryId,
+              source_context: entry.context,
+            },
+          ]
+        : [];
+    }),
+    { onConflict: 'chapter_id,vocabulary_entry_id' },
+  );
+  if (linksError) throw linksError;
+
+  if (input.candidateIds?.length) {
+    const { error: candidatesError } = await client
+      .from('vocabulary_candidates')
+      .update({ is_accepted: true })
+      .in('id', input.candidateIds);
+    if (candidatesError) throw candidatesError;
+  }
+}
+
+export async function deleteBackendVocabularyEntry(entryId: string) {
+  const { client } = await requireUser();
+  const { data, error } = await client
+    .from('vocabulary_entries')
+    .delete()
+    .eq('id', entryId)
+    .select('id')
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error('VOCABULARY_ENTRY_NOT_FOUND_OR_FORBIDDEN');
 }
