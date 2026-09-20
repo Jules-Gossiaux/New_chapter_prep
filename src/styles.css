@@ -1082,12 +1082,6 @@ textarea::placeholder {
   border-radius: 50%;
   background: #76a886;
 }
-.notification {
-  border: 0;
-  background: transparent;
-  color: #8d9992;
-  font-size: 22px;
-}
 .header-avatar {
   border: 0;
   width: 29px;
@@ -2746,8 +2740,7 @@ textarea::placeholder {
     height: 24px;
     font-size: 17px;
   }
-  .header-status,
-  .notification {
+  .header-status {
     display: none;
   }
   .content {

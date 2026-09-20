@@ -571,7 +571,6 @@ function AppShell({
             <span />{' '}
             {isSupabaseConfigured ? 'Connected to Supabase' : 'Saved locally'}
           </span>
-          <button className="notification">○</button>
           <button className="header-avatar">A</button>
         </header>
         {children}
