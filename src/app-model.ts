@@ -3,6 +3,7 @@ export type View =
   | 'auth'
   | 'library'
   | 'newBook'
+  | 'pdfImport'
   | 'book'
   | 'chapter'
   | 'review'

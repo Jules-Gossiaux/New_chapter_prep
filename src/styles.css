@@ -860,6 +860,63 @@ select:focus-visible {
   width: 100%;
   accent-color: var(--green);
 }
+.range-control input[type='range'],
+.pdf-range-control input[type='range'] {
+  appearance: none;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.range-control input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border: 1px solid #698074;
+  border-radius: 99px;
+  background: #314139;
+}
+.pdf-range-control input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border: 1px solid #698074;
+  border-radius: 99px;
+  background: linear-gradient(
+    to right,
+    var(--green) 0 var(--range-progress, 0%),
+    #314139 var(--range-progress, 0%) 100%
+  );
+}
+.range-control input[type='range']::-webkit-slider-thumb,
+.pdf-range-control input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--green);
+  cursor: pointer;
+}
+.range-control input[type='range']::-moz-range-track,
+.pdf-range-control input[type='range']::-moz-range-track {
+  height: 6px;
+  border: 1px solid #698074;
+  border-radius: 99px;
+  background: #314139;
+}
+.range-control input[type='range']::-moz-range-progress,
+.pdf-range-control input[type='range']::-moz-range-progress {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--green);
+}
+.range-control input[type='range']::-moz-range-thumb,
+.pdf-range-control input[type='range']::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--green);
+  cursor: pointer;
+}
 .pdf-range-control small,
 .pdf-import-summary small {
   color: var(--muted);

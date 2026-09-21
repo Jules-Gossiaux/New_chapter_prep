@@ -253,12 +253,14 @@ Content:
 
 PDF import is limited to text-based PDFs in the first version. Scanned PDFs or
 PDFs without extractable text must show a clear error; OCR is out of scope.
-After text extraction, the user chooses a target chapter size between 200 and
-3000 words. Chapter boundaries are created automatically, preferring the last
-paragraph before the target size and falling back to the nearest sentence when
-a paragraph is too long. Imported chapters are saved as unprocessed chapters;
-the existing chapter preparation flow starts only when the user explicitly
-selects Process chapter.
+Import uses a full book-creation page with the PDF filename as the default
+title, plus the regular author, language and learner-level fields. After text
+extraction, the user chooses a target chapter size between 200 and 3000 words.
+The chapter count updates live as the target changes. Chapter boundaries are
+created automatically, preferring the last paragraph before the target size and
+falling back to the nearest sentence when a paragraph is too long. Imported
+chapters are saved as unprocessed chapters; the existing chapter preparation
+choices are shown when the user selects Process chapter.
 
 ### Suggested vocabulary review
 
