@@ -819,6 +819,209 @@ select:focus-visible {
   gap: 10px;
   padding-top: 5px;
 }
+.export-modal {
+  width: min(760px, 100%);
+}
+.pdf-import-modal {
+  width: min(620px, 100%);
+}
+.pdf-import-copy {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: -4px 0 2px;
+}
+.pdf-file-input,
+.pdf-range-control {
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+.pdf-file-input input[type='file'] {
+  width: 100%;
+  padding: 10px;
+  border: 1px dashed var(--line);
+  border-radius: 9px;
+  color: var(--muted);
+  background: transparent;
+}
+.pdf-file-input > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.pdf-range-control output {
+  color: var(--green);
+  font-size: 16px;
+}
+.pdf-range-control input {
+  width: 100%;
+  accent-color: var(--green);
+}
+.range-control input[type='range'],
+.pdf-range-control input[type='range'] {
+  appearance: none;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.range-control input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border: 1px solid #698074;
+  border-radius: 99px;
+  background: #314139;
+}
+.pdf-range-control input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border: 1px solid #698074;
+  border-radius: 99px;
+  background: linear-gradient(
+    to right,
+    var(--green) 0 var(--range-progress, 0%),
+    #314139 var(--range-progress, 0%) 100%
+  );
+}
+.range-control input[type='range']::-webkit-slider-thumb,
+.pdf-range-control input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--green);
+  cursor: pointer;
+}
+.range-control input[type='range']::-moz-range-track,
+.pdf-range-control input[type='range']::-moz-range-track {
+  height: 6px;
+  border: 1px solid #698074;
+  border-radius: 99px;
+  background: #314139;
+}
+.range-control input[type='range']::-moz-range-progress,
+.pdf-range-control input[type='range']::-moz-range-progress {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--green);
+}
+.range-control input[type='range']::-moz-range-thumb,
+.pdf-range-control input[type='range']::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--green);
+  cursor: pointer;
+}
+.pdf-range-control small,
+.pdf-import-summary small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.pdf-import-summary {
+  display: grid;
+  gap: 5px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--sage);
+}
+.form-status {
+  color: var(--green);
+  font-size: 12px;
+  margin: 0;
+}
+.export-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.export-options label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.export-options label > span {
+  color: var(--ink);
+}
+.export-options select,
+.export-options input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 0 12px;
+  color: var(--ink);
+  background: var(--sage);
+  font: inherit;
+}
+.export-checkbox {
+  display: flex !important;
+  align-items: center;
+  grid-column: 1 / -1;
+  gap: 9px !important;
+  cursor: pointer;
+}
+.export-checkbox input {
+  width: 16px;
+  min-height: 16px;
+  accent-color: var(--green);
+}
+.export-preview-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 3px;
+}
+.export-preview-head b,
+.export-preview-head small {
+  display: block;
+}
+.export-preview-head b {
+  font-size: 13px;
+}
+.export-preview-head small {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 4px;
+}
+.export-preview-head code {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 4px 7px;
+  color: var(--green);
+  font-size: 10px;
+}
+.export-preview {
+  max-height: 260px;
+  overflow: auto;
+  margin: 0;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--cream);
+  color: var(--ink);
+  font:
+    12px/1.55 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.form-success {
+  color: var(--green);
+  font-size: 12px;
+  margin: 0;
+}
 .auth-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1140,6 +1343,12 @@ textarea::placeholder {
   justify-content: space-between;
   align-items: end;
 }
+.library-intro-actions {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  justify-content: end;
+}
 .page-intro h1,
 .setup-header h1,
 .review-header h1,
@@ -1438,6 +1647,24 @@ textarea::placeholder {
 .chapter-delete:hover {
   color: #8e3f2c;
   text-decoration: underline;
+}
+.chapter-process {
+  border: 1px solid var(--green);
+  border-radius: 7px;
+  padding: 7px 9px;
+  color: var(--green);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.chapter-process:hover {
+  color: var(--green-deep);
+  background: var(--sage);
+}
+.chapter-process:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 .delete-action:disabled,
 .chapter-delete:disabled {
@@ -2099,8 +2326,17 @@ textarea::placeholder {
   background: #fff;
   border: 1px solid #e1e5de;
   border-radius: 15px;
-  padding: 25px;
+  padding: 30px;
   box-shadow: 0 14px 30px #25483809;
+}
+.new-book-card form {
+  gap: 24px;
+}
+.new-book-card label {
+  gap: 10px;
+}
+.new-book-card .new-book-actions {
+  margin-top: 4px;
 }
 .new-book-card-head {
   display: flex;
@@ -2823,6 +3059,10 @@ textarea::placeholder {
     gap: 20px;
     flex-direction: column;
   }
+  .library-intro-actions {
+    width: 100%;
+    justify-content: start;
+  }
   .page-intro h1,
   .setup-header h1,
   .review-header h1,
@@ -3064,6 +3304,15 @@ textarea::placeholder {
   .export-note button {
     margin-left: 34px;
   }
+  .export-options {
+    grid-template-columns: 1fr;
+  }
+  .export-checkbox {
+    grid-column: auto;
+  }
+  .export-modal .editor-modal-actions {
+    flex-wrap: wrap;
+  }
 }
 
 /* Dark mode deliberately has its own complete surface system. It is placed after
@@ -3176,6 +3425,10 @@ html[data-theme='dark'] .filter-select select {
 html[data-theme='dark'] input::placeholder,
 html[data-theme='dark'] textarea::placeholder {
   color: #93a89a;
+}
+
+html[data-theme='dark'] .search-box input {
+  background: transparent;
 }
 
 html[data-theme='dark'] .button-primary {

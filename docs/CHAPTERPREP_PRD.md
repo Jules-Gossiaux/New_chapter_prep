@@ -251,6 +251,23 @@ Content:
 - Extraction settings.
 - Clear save/extract action.
 
+PDF import is limited to text-based PDFs in the first version. Scanned PDFs or
+PDFs without extractable text must show a clear error; OCR is out of scope.
+Import uses a full book-creation page with the PDF filename as the default
+title, plus the regular author, language and learner-level fields. After text
+extraction, the user chooses a target chapter size between 200 and 3000 words.
+The chapter count updates live as the target changes. Chapter boundaries are
+created automatically, preferring the last paragraph before the target size and
+falling back to the nearest sentence when a paragraph is too long. Imported
+chapters are saved as unprocessed chapters; the existing chapter preparation
+choices are shown when the user selects Process chapter. The target size is
+applied to the complete extracted text, including page-sized PDF text blocks,
+so changing the slider immediately changes the chapter count and the chapters
+created on import. Once vocabulary extraction succeeds, the chapter is marked
+ready and is not offered for processing again unless its content is edited.
+When processing a chapter, its language and learner level can override the
+book defaults and are persisted with the chapter.
+
 ### Suggested vocabulary review
 
 Purpose: give the learner control over AI output.
@@ -299,6 +316,11 @@ Content:
 - Edit and remove actions.
 - Export action.
 
+Vocabulary export opens a live preview where the user can edit the output,
+choose CSV or TXT, include or omit examples, select a comma, semicolon, tab or
+custom separator, copy the result, or download it. A selected book filter
+limits the export to that book's vocabulary.
+
 ## 8. UX and visual direction
 
 The previous application used a warm off-white background, dark green primary actions, white cards, rounded borders, large readable typography and restrained shadows. This direction is useful and should evolve into a more polished system.
@@ -327,6 +349,10 @@ Given valid title and target language, the user can create a book and see it in 
 
 Given valid chapter text, the user can save a chapter under a book with number/title metadata.
 
+### FR-2a — Import a text PDF
+
+Given a text-based PDF and a target chapter size between 200 and 3000 words, the system extracts the text, splits it into ordered chapters at paragraph or sentence boundaries, and saves those chapters as unprocessed. Scanned or otherwise non-extractable PDFs are rejected with a recoverable error.
+
 ### FR-3 — Preserve source text
 
 The exact normalized source text must remain recoverable even if generated vocabulary or annotations are edited.
@@ -353,9 +379,19 @@ The user can save a word globally, edit its meaning/notes and remove it later.
 
 ### FR-9 — Export
 
-The user can export selected vocabulary with deterministic fields and valid escaping.
+The user can preview and edit an export, choose CSV or TXT formatting with a configurable separator, optionally include examples, copy the result, and download it. When a book filter is selected, only vocabulary from that book is exported.
 
-### FR-10 — Recover from failure
+### FR-10 — Process imported chapters explicitly
+
+Imported chapters remain unprocessed until the user selects the existing chapter preparation action from the Chapters view.
+
+### FR-11 — Configure a chapter independently
+
+When processing an existing chapter, the user can change its target language and
+learner level independently from the book defaults. The selected values are
+saved before vocabulary extraction and are used by the extraction service.
+
+### FR-11 — Recover from failure
 
 Extraction, import and persistence failures must show a useful error and preserve recoverable user input.
 
