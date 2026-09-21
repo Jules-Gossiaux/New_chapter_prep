@@ -1,4 +1,5 @@
 import { countWords } from '../domain';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
 export type ImportedPdfChapter = {
   title: string;
@@ -108,13 +109,17 @@ function toImportedChapter(
 
 export async function extractTextFromPdf(file: File) {
   const pdfjs = await import('pdfjs-dist');
+  pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
   let document;
   try {
     document = await pdfjs.getDocument({ data: await file.arrayBuffer() })
       .promise;
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '';
     throw new PdfTextExtractionError(
-      'Unable to read this PDF. Please choose a valid text-based PDF.',
+      message.includes('worker')
+        ? 'The PDF reader could not start. Please refresh the page and retry.'
+        : 'Unable to read this PDF. Please choose a valid text-based PDF.',
     );
   }
   const pages: string[] = [];
