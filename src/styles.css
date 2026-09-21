@@ -1201,8 +1201,7 @@ textarea::placeholder {
   vertical-align: middle;
   margin-left: 4px;
 }
-.filter-button,
-.sort-button {
+.filter-button {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1213,8 +1212,7 @@ textarea::placeholder {
   padding: 9px 11px;
   font-size: 11px;
 }
-.filter-button .icon,
-.sort-button .icon {
+.filter-button .icon {
   width: 13px;
 }
 .book-grid {
@@ -2359,7 +2357,15 @@ textarea::placeholder {
 .aside-heading .icon {
   width: 13px;
 }
+.mini-word-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  margin-top: 7px;
+}
 .mini-word {
+  flex: 1;
+  min-width: 0;
   width: 100%;
   display: flex;
   align-items: center;
@@ -2370,7 +2376,6 @@ textarea::placeholder {
   padding: 10px 9px;
   color: var(--ink);
   text-align: left;
-  margin-top: 7px;
   font-size: 11px;
 }
 .mini-word b {
@@ -2381,6 +2386,34 @@ textarea::placeholder {
 }
 .mini-word small {
   color: #8b9991;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mini-word-remove {
+  display: grid;
+  place-items: center;
+  flex: 0 0 34px;
+  border: 1px solid #e2e7e0;
+  background: #fbfcfa;
+  border-radius: 8px;
+  color: #a7b0aa;
+}
+.mini-word-remove:hover,
+.mini-word-remove:focus-visible,
+.vocab-more:hover,
+.vocab-more:focus-visible {
+  color: #ad563f;
+}
+.mini-word-remove:disabled,
+.vocab-more:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+.mini-word-remove .icon,
+.vocab-more .icon {
+  width: 15px;
+  height: 15px;
 }
 .aside-empty {
   color: #99a59e;
@@ -2464,6 +2497,10 @@ textarea::placeholder {
   text-overflow: ellipsis;
 }
 .vocab-more {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
   border: 0;
   background: transparent;
   color: #a7b0aa;
@@ -2839,9 +2876,6 @@ textarea::placeholder {
   .chapter-heading {
     margin-top: 35px;
   }
-  .sort-button {
-    display: none;
-  }
   .chapter-card {
     gap: 10px;
     padding: 14px 12px;
@@ -3190,7 +3224,8 @@ html[data-theme='dark'] .quote-strip,
 html[data-theme='dark'] .extraction-badge,
 html[data-theme='dark'] .part-pill,
 html[data-theme='dark'] .prep-level,
-html[data-theme='dark'] .mini-word {
+html[data-theme='dark'] .mini-word,
+html[data-theme='dark'] .mini-word-remove {
   background: #223229;
   color: var(--ink);
   border-color: #425d4d;

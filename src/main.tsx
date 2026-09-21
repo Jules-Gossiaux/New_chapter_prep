@@ -4,6 +4,7 @@ import {
   candidates,
   demoBooks,
   readerParagraphs,
+  sortChapterPreviews,
   type Candidate,
   type DemoBook,
   type View,
@@ -45,7 +46,8 @@ type IconName =
   | 'search'
   | 'menu'
   | 'close'
-  | 'chevron';
+  | 'chevron'
+  | 'trash';
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, string> = {
     book: 'M5 4.5h10a2 2 0 0 1 2 2V18H7a2 2 0 0 0-2 2V4.5Zm0 15.5a2 2 0 0 1 2-2h10M8 8h6M8 11h6',
@@ -65,6 +67,7 @@ function Icon({ name }: { name: IconName }) {
     menu: 'M4 7h16M4 12h16M4 17h16',
     close: 'M6 6l12 12M18 6 6 18',
     chevron: 'm7 10 5 5 5-5',
+    trash: 'M5 7h14m-9 4v6m4-6v6M9 7V5h6v2m-9 0 1 13h10l1-13',
   };
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="icon">
@@ -908,6 +911,7 @@ function BookDetail({
     },
   ) => Promise<void>;
 }) {
+  const chapters = sortChapterPreviews(book.chapters);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editingBook, setEditingBook] = useState(false);
@@ -1008,12 +1012,9 @@ function BookDetail({
               Chapters <span>{book.chapters.length}</span>
             </h2>
           </div>
-          <button className="sort-button">
-            Chapter order <Icon name="chevron" />
-          </button>
         </div>
         <section className="chapter-list">
-          {book.chapters.map((chapter) => (
+          {chapters.map((chapter) => (
             <div className="chapter-card" key={chapter.id}>
               <button
                 className="chapter-open"
@@ -1778,6 +1779,7 @@ function Reader({
   go,
   saved,
   onSaveWord,
+  onRemoveWord,
   vocabularyEntries,
   book,
   chapter,
@@ -1786,6 +1788,7 @@ function Reader({
   go: (view: View) => void;
   saved: Set<string>;
   onSaveWord: (word: WordDetails) => Promise<void>;
+  onRemoveWord: (entry: SavedVocabularyItem) => Promise<void>;
   vocabularyEntries: SavedVocabularyItem[];
   book: DemoBook;
   chapter: DemoBook['chapters'][number];
@@ -1795,6 +1798,7 @@ function Reader({
   const [lookups, setLookups] = useState<Record<string, WordDetails>>({});
   const [translationError, setTranslationError] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
+  const [removingWordId, setRemovingWordId] = useState<string | null>(null);
   const [fontSize, setFontSize] = useState(20);
   const active = activeWord
     ? (candidateWordDetails(activeWord, candidateItems) ??
@@ -1977,16 +1981,53 @@ function Reader({
                 </span>
               </div>
               {candidateItems.map((details) => {
+                const savedEntry =
+                  vocabularyEntries.find(
+                    (entry) =>
+                      entry.word.toLocaleLowerCase() ===
+                      details.word.toLocaleLowerCase(),
+                  ) ??
+                  (!isSupabaseConfigured && saved.has(details.word)
+                    ? {
+                        ...details,
+                        id: details.word,
+                        bookTitle: book.title,
+                        createdAt: '',
+                      }
+                    : null);
                 return (
-                  <button
-                    className="mini-word"
-                    key={details.id}
-                    onClick={() => setActiveWord(details.word)}
-                  >
-                    <b>{details.word}</b>
-                    <span>→</span>
-                    <small>{details.translation}</small>
-                  </button>
+                  <div className="mini-word-row" key={details.id}>
+                    <button
+                      className="mini-word"
+                      onClick={() => setActiveWord(details.word)}
+                    >
+                      <b>{details.word}</b>
+                      <span>→</span>
+                      <small>{details.translation}</small>
+                    </button>
+                    {savedEntry && (
+                      <button
+                        className="mini-word-remove"
+                        type="button"
+                        title={`Remove ${details.word} from vocabulary`}
+                        aria-label={`Remove ${details.word} from vocabulary`}
+                        disabled={removingWordId === savedEntry.id}
+                        onClick={() => {
+                          setRemovingWordId(savedEntry.id);
+                          setTranslationError(null);
+                          void onRemoveWord(savedEntry)
+                            .catch(() =>
+                              setTranslationError(
+                                'Unable to remove this word. Please retry.',
+                              ),
+                            )
+                            .finally(() => setRemovingWordId(null));
+                        }}
+                      >
+                        <Icon name="trash" />
+                      </button>
+                    )}
+                  </div>
                 );
               })}
               {candidateItems.length === 0 && (
@@ -2130,6 +2171,8 @@ function Vocabulary({
                 <button
                   className="vocab-more"
                   disabled={removingId === word.id}
+                  title={`Remove ${word.word} from vocabulary`}
+                  aria-label={`Remove ${word.word} from vocabulary`}
                   onClick={() => {
                     setRemovingId(word.id);
                     setRemoveError(null);
@@ -2142,7 +2185,7 @@ function Vocabulary({
                       .finally(() => setRemovingId(null));
                   }}
                 >
-                  {removingId === word.id ? 'Removing…' : 'Remove'}
+                  <Icon name="trash" />
                 </button>
               </article>
             ))
@@ -2242,6 +2285,18 @@ function App() {
   const saveWord = async (word: WordDetails) => {
     if (!isSupabaseConfigured) {
       setSaved((old) => new Set(old).add(word.word));
+      setVocabularyEntries((old) => [
+        {
+          ...word,
+          id: word.word,
+          bookTitle: selectedBook?.title ?? 'Current book',
+          createdAt: '',
+        },
+        ...old.filter(
+          (entry) =>
+            entry.word.toLocaleLowerCase() !== word.word.toLocaleLowerCase(),
+        ),
+      ]);
       return;
     }
     if (!selectedChapter) throw new Error('SELECT_CHAPTER_REQUIRED');
@@ -2707,6 +2762,7 @@ function App() {
           go={go}
           saved={saved}
           onSaveWord={saveWord}
+          onRemoveWord={removeVocabularyWord}
           vocabularyEntries={vocabularyEntries}
           book={selectedBook}
           chapter={selectedChapter}

@@ -41,6 +41,10 @@ export type DemoBook = {
   chapters: ChapterPreview[];
 };
 
+export function sortChapterPreviews(chapters: ChapterPreview[]) {
+  return [...chapters].sort((a, b) => a.number - b.number);
+}
+
 export const candidates: Candidate[] = [
   {
     id: 'c1',
