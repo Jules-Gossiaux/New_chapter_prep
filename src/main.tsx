@@ -1542,11 +1542,13 @@ function ChapterSetup({
   onProcess?: (input: {
     chapterId: string;
     requestedCount: number;
+    targetLanguage: string;
+    learnerLevel: string;
   }) => Promise<void>;
 }) {
   const [text, setText] = useState(chapter?.sourceText ?? '');
   const [level, setLevel] = useState(chapter?.learnerLevel ?? 'B1');
-  const [language, setLanguage] = useState(book.language);
+  const [language, setLanguage] = useState(chapter?.language ?? book.language);
   const [amount, setAmount] = useState(5);
   const [error, setError] = useState('');
   const [chapterNumber, setChapterNumber] = useState(
@@ -1563,7 +1565,12 @@ function ChapterSetup({
     setError('');
     const action =
       chapter && onProcess
-        ? onProcess({ chapterId: chapter.id, requestedCount: amount })
+        ? onProcess({
+            chapterId: chapter.id,
+            requestedCount: amount,
+            targetLanguage: language,
+            learnerLevel: level,
+          })
         : onCreateChapter({
             number: chapterNumber,
             title: chapterTitle,
@@ -1637,7 +1644,6 @@ function ChapterSetup({
             Chapter language
             <select
               value={language}
-              disabled={Boolean(chapter)}
               onChange={(event) => setLanguage(event.target.value)}
             >
               <option value="English">English</option>
@@ -1648,7 +1654,6 @@ function ChapterSetup({
             Your current level
             <select
               value={level}
-              disabled={Boolean(chapter)}
               onChange={(event) => setLevel(event.target.value)}
             >
               <option value="A1">A1 · Beginner</option>
@@ -3238,18 +3243,84 @@ function App() {
       setSelected(new Set());
     }
   };
+  const markChapterReady = (chapterId: string) => {
+    const updateBook = (book: DemoBook) => ({
+      ...book,
+      chapters: book.chapters.map((chapter) =>
+        chapter.id === chapterId
+          ? { ...chapter, status: 'Ready' as const }
+          : chapter,
+      ),
+    });
+    setSelectedBook((book) => (book ? updateBook(book) : book));
+    setBooks((old) =>
+      old.map((book) =>
+        book.chapters.some((chapter) => chapter.id === chapterId)
+          ? updateBook(book)
+          : book,
+      ),
+    );
+    setSelectedChapter((chapter) =>
+      chapter?.id === chapterId
+        ? { ...chapter, status: 'Ready' as const }
+        : chapter,
+    );
+  };
   const extractChapter = async ({
     chapterId,
     requestedCount,
+    targetLanguage,
+    learnerLevel,
   }: {
     chapterId: string;
     requestedCount: number;
+    targetLanguage?: string;
+    learnerLevel?: string;
   }) => {
+    const currentChapter = selectedBook?.chapters.find(
+      (chapter) => chapter.id === chapterId,
+    );
+    if (
+      currentChapter &&
+      selectedBook &&
+      targetLanguage &&
+      learnerLevel &&
+      (currentChapter.language !== targetLanguage ||
+        currentChapter.learnerLevel !== learnerLevel)
+    ) {
+      const persisted = isSupabaseConfigured
+        ? await updateBackendChapter(chapterId, {
+            number: currentChapter.number,
+            title: currentChapter.title,
+            sourceText: currentChapter.sourceText ?? '',
+            targetLanguage,
+            learnerLevel,
+          })
+        : null;
+      const updatedChapter = {
+        ...currentChapter,
+        language: persisted?.targetLanguage ?? targetLanguage,
+        learnerLevel: persisted?.learnerLevel ?? learnerLevel,
+        status: 'Not started' as const,
+      };
+      const nextBook = {
+        ...selectedBook,
+        chapters: selectedBook.chapters.map((chapter) =>
+          chapter.id === chapterId ? updatedChapter : chapter,
+        ),
+      };
+      setSelectedBook(nextBook);
+      setBooks((old) =>
+        old.map((book) => (book.id === nextBook.id ? nextBook : book)),
+      );
+      setSelectedChapter(updatedChapter);
+    }
     if (!isSupabaseConfigured) {
       const preview = candidates.slice(0, requestedCount);
       setCandidateItems(preview);
       setSelected(new Set(preview.map((candidate) => candidate.id)));
       setExtractionNotice(null);
+      markChapterReady(chapterId);
       go('review');
       return;
     }
@@ -3273,8 +3344,26 @@ function App() {
           ? `This chapter contains ${result.eligibleCount} level-appropriate words. We selected the most frequent ones first; keep the list focused before reading.`
           : null,
     );
+    markChapterReady(chapterId);
     go('review');
   };
+  const processChapterWithSettings = async ({
+    chapterId,
+    requestedCount,
+    targetLanguage,
+    learnerLevel,
+  }: {
+    chapterId: string;
+    requestedCount: number;
+    targetLanguage: string;
+    learnerLevel: string;
+  }) =>
+    extractChapter({
+      chapterId,
+      requestedCount,
+      targetLanguage,
+      learnerLevel,
+    });
   const processChapter = async (chapter: DemoBook['chapters'][number]) => {
     setSelectedChapter(chapter);
     setCandidateItems([]);
@@ -3373,7 +3462,7 @@ function App() {
           onExtract={extractChapter}
           onCreateChapter={createChapter}
           chapter={selectedChapter ?? undefined}
-          onProcess={extractChapter}
+          onProcess={processChapterWithSettings}
           nextChapterNumber={
             Math.max(
               0,

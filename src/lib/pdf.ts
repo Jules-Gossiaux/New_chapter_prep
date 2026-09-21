@@ -62,37 +62,26 @@ function splitLongParagraph(paragraph: string, targetWords: number) {
 export function splitTextIntoPdfChapters(text: string, targetWords: number) {
   const paragraphs = splitParagraphs(text);
   const chapters: ImportedPdfChapter[] = [];
-  let current: string[] = [];
+  let current = '';
 
   for (const paragraph of paragraphs) {
-    const paragraphWords = countWords(paragraph);
-    if (paragraphWords > 200) {
-      if (current.length) {
-        chapters.push(
-          toImportedChapter(current.join('\n\n'), chapters.length + 1),
-        );
-        current = [];
-      }
-      for (const chunk of splitLongParagraph(paragraph, targetWords)) {
-        chapters.push(toImportedChapter(chunk, chapters.length + 1));
-      }
-      continue;
-    }
+    const units =
+      countWords(paragraph) > 200
+        ? splitLongParagraph(paragraph, targetWords)
+        : [paragraph];
 
-    const candidate = [...current, paragraph].join('\n\n');
-    if (current.length && countWords(candidate) > targetWords) {
-      chapters.push(
-        toImportedChapter(current.join('\n\n'), chapters.length + 1),
-      );
-      current = [paragraph];
-    } else {
-      current.push(paragraph);
+    for (const unit of units) {
+      const candidate = current ? `${current}\n\n${unit}` : unit;
+      if (current && countWords(candidate) > targetWords) {
+        chapters.push(toImportedChapter(current, chapters.length + 1));
+        current = unit;
+      } else {
+        current = candidate;
+      }
     }
   }
 
-  if (current.length) {
-    chapters.push(toImportedChapter(current.join('\n\n'), chapters.length + 1));
-  }
+  if (current) chapters.push(toImportedChapter(current, chapters.length + 1));
   return chapters;
 }
 

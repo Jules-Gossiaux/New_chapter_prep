@@ -2326,8 +2326,17 @@ textarea::placeholder {
   background: #fff;
   border: 1px solid #e1e5de;
   border-radius: 15px;
-  padding: 25px;
+  padding: 30px;
   box-shadow: 0 14px 30px #25483809;
+}
+.new-book-card form {
+  gap: 24px;
+}
+.new-book-card label {
+  gap: 10px;
+}
+.new-book-card .new-book-actions {
+  margin-top: 4px;
 }
 .new-book-card-head {
   display: flex;

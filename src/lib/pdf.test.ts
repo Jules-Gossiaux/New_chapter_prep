@@ -23,4 +23,20 @@ describe('PDF chapter splitting', () => {
     expect(chapters[0].sourceText).toMatch(/\.$/);
     expect(chapters.every((chapter) => chapter.words > 0)).toBe(true);
   });
+
+  it('uses the target size to group page-sized paragraphs', () => {
+    const page = Array.from(
+      { length: 400 },
+      (_, index) => `Page sentence ${index + 1}.`,
+    ).join(' ');
+    const text = [page, page, page, page].join('\n\n');
+
+    const smaller = splitTextIntoPdfChapters(text, 1000);
+    const larger = splitTextIntoPdfChapters(text, 2300);
+
+    expect(smaller.length).toBeGreaterThan(larger.length);
+    expect(smaller.reduce((total, chapter) => total + chapter.words, 0)).toBe(
+      larger.reduce((total, chapter) => total + chapter.words, 0),
+    );
+  });
 });
