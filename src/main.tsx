@@ -29,6 +29,7 @@ import {
   updateBackendChapter,
 } from './lib/books';
 import { extractVocabulary, translateVocabularyWord } from './lib/extraction';
+import { importTextPdf, type ImportedPdfChapter } from './lib/pdf';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import {
   filterVocabularyForExport,
@@ -939,6 +940,8 @@ function BookDetail({
   onDeleteChapter,
   onEditBook,
   onEditChapter,
+  onProcessChapter,
+  onImportPdf,
 }: {
   book: DemoBook;
   go: (view: View) => void;
@@ -958,6 +961,8 @@ function BookDetail({
       learnerLevel: string;
     },
   ) => Promise<void>;
+  onProcessChapter: (chapter: DemoBook['chapters'][number]) => Promise<void>;
+  onImportPdf: (chapters: ImportedPdfChapter[]) => Promise<void>;
 }) {
   const chapters = sortChapterPreviews(book.chapters);
   const [error, setError] = useState<string | null>(null);
@@ -966,6 +971,10 @@ function BookDetail({
   const [editingChapter, setEditingChapter] = useState<
     DemoBook['chapters'][number] | null
   >(null);
+  const [importingPdf, setImportingPdf] = useState(false);
+  const [processingChapter, setProcessingChapter] = useState<string | null>(
+    null,
+  );
   const openChapter = async (chapter: DemoBook['chapters'][number]) => {
     setError(null);
     try {
@@ -1003,6 +1012,17 @@ function BookDetail({
       setDeleting(null);
     }
   };
+  const processChapter = async (chapter: DemoBook['chapters'][number]) => {
+    setProcessingChapter(chapter.id);
+    setError(null);
+    try {
+      await onProcessChapter(chapter);
+    } catch {
+      setError('Unable to process this chapter. Please retry.');
+    } finally {
+      setProcessingChapter(null);
+    }
+  };
   return (
     <AppShell view="book" go={go}>
       <main className="content narrow">
@@ -1038,6 +1058,12 @@ function BookDetail({
             <Button onClick={() => go('chapter')}>
               <Icon name="plus" /> Add chapter
             </Button>
+            <button
+              className="delete-action"
+              onClick={() => setImportingPdf(true)}
+            >
+              Import PDF
+            </button>
             <button
               className="delete-action"
               onClick={() => setEditingBook(true)}
@@ -1092,6 +1118,17 @@ function BookDetail({
               >
                 Edit
               </button>
+              {chapter.status === 'Not started' && (
+                <button
+                  className="chapter-process"
+                  onClick={() => void processChapter(chapter)}
+                  disabled={processingChapter === chapter.id}
+                >
+                  {processingChapter === chapter.id
+                    ? 'Processing…'
+                    : 'Process chapter'}
+                </button>
+              )}
               <button
                 className="chapter-delete"
                 onClick={() => void removeChapter(chapter)}
@@ -1138,10 +1175,157 @@ function BookDetail({
             }
           />
         )}
+        {importingPdf && (
+          <PdfImportModal
+            onClose={() => setImportingPdf(false)}
+            onImport={async (chapters) => {
+              await onImportPdf(chapters);
+              setImportingPdf(false);
+            }}
+          />
+        )}
       </main>
     </AppShell>
   );
 }
+
+function PdfImportModal({
+  onClose,
+  onImport,
+}: {
+  onClose: () => void;
+  onImport: (chapters: ImportedPdfChapter[]) => Promise<void>;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [targetWords, setTargetWords] = useState(1000);
+  const [chapters, setChapters] = useState<ImportedPdfChapter[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [reading, setReading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!file) {
+      setChapters([]);
+      return;
+    }
+    let active = true;
+    setReading(true);
+    setError(null);
+    void importTextPdf(file, targetWords)
+      .then((nextChapters) => {
+        if (active) setChapters(nextChapters);
+      })
+      .catch((importError) => {
+        if (!active) return;
+        setChapters([]);
+        setError(
+          importError instanceof Error
+            ? importError.message
+            : 'This PDF does not contain extractable text.',
+        );
+      })
+      .finally(() => {
+        if (active) setReading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [file, targetWords]);
+
+  const saveImport = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await onImport(chapters);
+    } catch (importError) {
+      setError(
+        importError instanceof Error
+          ? importError.message
+          : 'Unable to import this PDF. Please retry.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="editor-modal-backdrop" role="presentation">
+      <section
+        className="editor-modal pdf-import-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pdf-import-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="editor-modal-head">
+          <div>
+            <span className="kicker">BOOK IMPORT</span>
+            <h2 id="pdf-import-title">Import a PDF book.</h2>
+          </div>
+          <button className="panel-close" onClick={onClose}>
+            <Icon name="close" />
+          </button>
+        </div>
+        <p className="pdf-import-copy">
+          Text-based PDFs are split automatically into chapters. Scanned PDFs
+          are not supported yet.
+        </p>
+        <label className="pdf-file-input">
+          PDF file
+          <input
+            type="file"
+            accept="application/pdf,.pdf"
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+          />
+          <span>{file?.name ?? 'Choose a PDF file'}</span>
+        </label>
+        <label className="pdf-range-control">
+          Target words per chapter
+          <output>{targetWords.toLocaleString()} words</output>
+          <input
+            type="range"
+            min="200"
+            max="3000"
+            step="100"
+            value={targetWords}
+            onChange={(event) => setTargetWords(Number(event.target.value))}
+          />
+          <small>Chapters end at the nearest paragraph or sentence.</small>
+        </label>
+        {reading && <p className="form-status">Reading PDF…</p>}
+        {chapters.length > 0 && !reading && (
+          <div className="pdf-import-summary">
+            <b>
+              {chapters.length} chapters ·{' '}
+              {chapters
+                .reduce((total, chapter) => total + chapter.words, 0)
+                .toLocaleString()}{' '}
+              words
+            </b>
+            <small>They will be saved as unprocessed chapters.</small>
+          </div>
+        )}
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="editor-modal-actions">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            disabled={!chapters.length || reading || saving}
+            onClick={() => void saveImport()}
+          >
+            {saving ? 'Importing…' : 'Import chapters'} <Icon name="arrow" />
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function EditorModal({
   book,
   chapter,
@@ -2770,6 +2954,66 @@ function App() {
     );
     return createdChapter;
   };
+  const importPdfChapters = async (chapters: ImportedPdfChapter[]) => {
+    if (!selectedBook) throw new Error('SELECT_BOOK_REQUIRED');
+    let nextBook = selectedBook;
+    let nextNumber =
+      Math.max(0, ...selectedBook.chapters.map((chapter) => chapter.number)) +
+      1;
+
+    for (const importedChapter of chapters) {
+      const chapter = isSupabaseConfigured
+        ? await createBackendChapter({
+            bookId: nextBook.id,
+            number: nextNumber,
+            title: importedChapter.title,
+            sourceText: importedChapter.sourceText,
+            targetLanguage: nextBook.language,
+            learnerLevel: nextBook.level,
+          })
+        : {
+            id: `chapter-${Date.now()}-${nextNumber}`,
+            number: nextNumber,
+            title: importedChapter.title,
+            words: importedChapter.words,
+            sourceText: importedChapter.sourceText,
+            status: 'Not started' as const,
+            language: nextBook.language,
+            learnerLevel: nextBook.level,
+          };
+      const createdChapter = {
+        id: chapter.id,
+        number: chapter.number,
+        title: chapter.title,
+        words: 'wordCount' in chapter ? chapter.wordCount : chapter.words,
+        sourceText:
+          'sourceText' in chapter
+            ? chapter.sourceText
+            : importedChapter.sourceText,
+        status: 'Not started' as const,
+        language:
+          'targetLanguage' in chapter
+            ? chapter.targetLanguage
+            : nextBook.language,
+        learnerLevel:
+          'learnerLevel' in chapter ? chapter.learnerLevel : nextBook.level,
+      };
+      nextBook = {
+        ...nextBook,
+        chapters: [...nextBook.chapters, createdChapter],
+      };
+      nextNumber += 1;
+    }
+
+    setSelectedBook(nextBook);
+    setBooks((old) =>
+      old.map((book) => (book.id === nextBook.id ? nextBook : book)),
+    );
+    setSelectedChapter(null);
+    setCandidateItems([]);
+    setSelected(new Set());
+    go('book');
+  };
   const removeBook = async (book: DemoBook) => {
     if (isSupabaseConfigured) await deleteBackendBook(book.id);
     setBooks((old) => old.filter((item) => item.id !== book.id));
@@ -2893,6 +3137,22 @@ function App() {
     );
     go('review');
   };
+  const processChapter = async (chapter: DemoBook['chapters'][number]) => {
+    await openChapter(chapter);
+    await extractChapter({ chapterId: chapter.id, requestedCount: 5 });
+    const updateStatus = (book: DemoBook) => ({
+      ...book,
+      chapters: book.chapters.map((item) =>
+        item.id === chapter.id ? { ...item, status: 'Ready' as const } : item,
+      ),
+    });
+    setSelectedBook((book) => (book ? updateStatus(book) : book));
+    setBooks((old) =>
+      old.map((book) =>
+        book.id === selectedBook?.id ? updateStatus(book) : book,
+      ),
+    );
+  };
   const handleSignOut = async () => {
     await signOut();
     setUserLabel(null);
@@ -2959,6 +3219,8 @@ function App() {
           onDeleteChapter={removeChapter}
           onEditBook={editBook}
           onEditChapter={editChapter}
+          onProcessChapter={processChapter}
+          onImportPdf={importPdfChapters}
         />
       ) : (
         <Library
@@ -3047,6 +3309,8 @@ function App() {
           onDeleteChapter={removeChapter}
           onEditBook={editBook}
           onEditChapter={editChapter}
+          onProcessChapter={processChapter}
+          onImportPdf={importPdfChapters}
         />
       ) : (
         <Library
@@ -3077,6 +3341,8 @@ function App() {
     extractionNotice,
     authReady,
     theme,
+    processChapter,
+    importPdfChapters,
   ]);
   return (
     <AccountContext.Provider

@@ -822,6 +822,63 @@ select:focus-visible {
 .export-modal {
   width: min(760px, 100%);
 }
+.pdf-import-modal {
+  width: min(620px, 100%);
+}
+.pdf-import-copy {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: -4px 0 2px;
+}
+.pdf-file-input,
+.pdf-range-control {
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+.pdf-file-input input[type='file'] {
+  width: 100%;
+  padding: 10px;
+  border: 1px dashed var(--line);
+  border-radius: 9px;
+  color: var(--muted);
+  background: transparent;
+}
+.pdf-file-input > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.pdf-range-control output {
+  color: var(--green);
+  font-size: 16px;
+}
+.pdf-range-control input {
+  width: 100%;
+  accent-color: var(--green);
+}
+.pdf-range-control small,
+.pdf-import-summary small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+.pdf-import-summary {
+  display: grid;
+  gap: 5px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--sage);
+}
+.form-status {
+  color: var(--green);
+  font-size: 12px;
+  margin: 0;
+}
 .export-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1527,6 +1584,24 @@ textarea::placeholder {
 .chapter-delete:hover {
   color: #8e3f2c;
   text-decoration: underline;
+}
+.chapter-process {
+  border: 1px solid var(--green);
+  border-radius: 7px;
+  padding: 7px 9px;
+  color: var(--green);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.chapter-process:hover {
+  color: var(--green-deep);
+  background: var(--sage);
+}
+.chapter-process:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 .delete-action:disabled,
 .chapter-delete:disabled {
