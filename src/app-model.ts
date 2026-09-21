@@ -45,6 +45,15 @@ export function sortChapterPreviews(chapters: ChapterPreview[]) {
   return [...chapters].sort((a, b) => a.number - b.number);
 }
 
+export function displayNameFromEmail(email: string | null | undefined) {
+  const firstWord = email
+    ?.split('@')[0]
+    ?.split(/[._\-\s]+/u)[0]
+    ?.trim();
+  if (!firstWord) return null;
+  return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
+}
+
 export const candidates: Candidate[] = [
   {
     id: 'c1',

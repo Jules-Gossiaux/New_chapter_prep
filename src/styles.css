@@ -1286,6 +1286,12 @@ textarea::placeholder {
   justify-content: space-between;
   align-items: end;
 }
+.library-intro-actions {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  justify-content: end;
+}
 .page-intro h1,
 .setup-header h1,
 .review-header h1,
@@ -2986,6 +2992,10 @@ textarea::placeholder {
     align-items: start;
     gap: 20px;
     flex-direction: column;
+  }
+  .library-intro-actions {
+    width: 100%;
+    justify-content: start;
   }
   .page-intro h1,
   .setup-header h1,

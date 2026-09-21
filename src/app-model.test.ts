@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sortChapterPreviews } from './app-model';
+import { displayNameFromEmail, sortChapterPreviews } from './app-model';
 
 describe('sortChapterPreviews', () => {
   it('orders chapters by their numeric chapter number without mutating input', () => {
@@ -31,5 +31,13 @@ describe('sortChapterPreviews', () => {
       sortChapterPreviews(chapters).map((chapter) => chapter.number),
     ).toEqual([1, 2, 10]);
     expect(chapters.map((chapter) => chapter.number)).toEqual([10, 2, 1]);
+  });
+});
+
+describe('displayNameFromEmail', () => {
+  it('uses and capitalizes the first local-part word', () => {
+    expect(displayNameFromEmail('aeroxe.gossiaux@gmail.com')).toBe('Aeroxe');
+    expect(displayNameFromEmail('reader@example.com')).toBe('Reader');
+    expect(displayNameFromEmail(null)).toBeNull();
   });
 });

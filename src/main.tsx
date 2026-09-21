@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   candidates,
   demoBooks,
+  displayNameFromEmail,
   readerParagraphs,
   sortChapterPreviews,
   type Candidate,
@@ -801,26 +802,46 @@ function Library({
   books,
   selectBook,
   userLabel,
+  onImportPdf,
 }: {
   go: (view: View) => void;
   books: DemoBook[];
   selectBook: (book: DemoBook) => void;
   userLabel?: string | null;
+  onImportPdf: (
+    book: DemoBook,
+    chapters: ImportedPdfChapter[],
+  ) => Promise<void>;
 }) {
   const currentBook = books[0];
   const currentChapter = currentBook?.chapters[0];
+  const [importingPdf, setImportingPdf] = useState(false);
   return (
     <AppShell view="library" go={go}>
       <main className="content">
         <div className="page-intro">
           <div>
             <span className="kicker">YOUR READING SPACE</span>
-            <h1>{userLabel ? `Welcome, ${userLabel}.` : 'Your library.'}</h1>
+            <h1>
+              {userLabel
+                ? `Welcome, ${displayNameFromEmail(userLabel) ?? userLabel}.`
+                : 'Your library.'}
+            </h1>
             <p>What story are you stepping into today?</p>
           </div>
-          <Button onClick={() => go('newBook')}>
-            <Icon name="plus" /> Add a book
-          </Button>
+          <div className="library-intro-actions">
+            <Button
+              variant="outline"
+              onClick={() =>
+                currentBook ? setImportingPdf(true) : go('newBook')
+              }
+            >
+              <Icon name="download" /> Import PDF
+            </Button>
+            <Button onClick={() => go('newBook')}>
+              <Icon name="plus" /> Add a book
+            </Button>
+          </div>
         </div>
         {currentBook ? (
           <section className="continue-card">
@@ -904,6 +925,16 @@ function Library({
           </p>
           <span className="quote-author">CHAPTERPREP NOTE 01</span>
         </section>
+        {importingPdf && currentBook && (
+          <PdfImportModal
+            onClose={() => setImportingPdf(false)}
+            onImport={async (chapters) => {
+              selectBook(currentBook);
+              await onImportPdf(currentBook, chapters);
+              setImportingPdf(false);
+            }}
+          />
+        )}
       </main>
     </AppShell>
   );
@@ -2954,12 +2985,13 @@ function App() {
     );
     return createdChapter;
   };
-  const importPdfChapters = async (chapters: ImportedPdfChapter[]) => {
-    if (!selectedBook) throw new Error('SELECT_BOOK_REQUIRED');
-    let nextBook = selectedBook;
+  const importPdfChapters = async (
+    book: DemoBook,
+    chapters: ImportedPdfChapter[],
+  ) => {
+    let nextBook = book;
     let nextNumber =
-      Math.max(0, ...selectedBook.chapters.map((chapter) => chapter.number)) +
-      1;
+      Math.max(0, ...book.chapters.map((chapter) => chapter.number)) + 1;
 
     for (const importedChapter of chapters) {
       const chapter = isSupabaseConfigured
@@ -3206,6 +3238,7 @@ function App() {
           books={books}
           selectBook={setSelectedBook}
           userLabel={userLabel}
+          onImportPdf={importPdfChapters}
         />
       );
     if (view === 'newBook') return <NewBook go={go} onCreate={createBook} />;
@@ -3220,7 +3253,7 @@ function App() {
           onEditBook={editBook}
           onEditChapter={editChapter}
           onProcessChapter={processChapter}
-          onImportPdf={importPdfChapters}
+          onImportPdf={(chapters) => importPdfChapters(selectedBook, chapters)}
         />
       ) : (
         <Library
@@ -3228,6 +3261,7 @@ function App() {
           books={books}
           selectBook={setSelectedBook}
           userLabel={userLabel}
+          onImportPdf={importPdfChapters}
         />
       );
     if (view === 'chapter')
@@ -3250,6 +3284,7 @@ function App() {
           books={books}
           selectBook={setSelectedBook}
           userLabel={userLabel}
+          onImportPdf={importPdfChapters}
         />
       );
     if (view === 'review')
@@ -3310,7 +3345,7 @@ function App() {
           onEditBook={editBook}
           onEditChapter={editChapter}
           onProcessChapter={processChapter}
-          onImportPdf={importPdfChapters}
+          onImportPdf={(chapters) => importPdfChapters(selectedBook, chapters)}
         />
       ) : (
         <Library
@@ -3318,6 +3353,7 @@ function App() {
           books={books}
           selectBook={setSelectedBook}
           userLabel={userLabel}
+          onImportPdf={importPdfChapters}
         />
       );
     return (
