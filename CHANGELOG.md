@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.2 — Available Gemini model
+
+- Switched vocabulary enrichment to `gemini-3.5-flash-lite` after verifying it responds for the configured API key while `gemini-3.6-flash` returned a temporary high-demand response.
+
+## 0.4.1 — Extraction recovery
+
+- Updated the Gemini model from retired `gemini-2.5-flash` to `gemini-3.6-flash` after the provider returned a 404.
+- Made the chapter-level selector editable and persisted level changes to the associated Supabase book.
+- Surface structured Edge Function error messages in the browser instead of a generic non-2xx status.
+
+## 0.4.0 — Frequency-guided vocabulary extraction
+
+- Added a server-only OpenSubtitles frequency reference for the top 10,000 English and French forms, with source rank and count.
+- Raised the chapter import safety limit to 50,000 words and made the chapter control a 1–50 absolute suggestion maximum.
+- Replaced full-chapter AI prompting with deterministic level-aware candidate selection and context-only Gemini enrichment.
+- Persisted extraction runs and candidates, including frequency metadata, and added a focused-list notice for chapters with more than 50 eligible words.
+
 ## 0.1.0 — Foundation
 
 - Added React/Vite/TypeScript foundation.
@@ -30,3 +47,10 @@
 - Added Supabase configuration, environment template, email/password Auth wiring, typed book/chapter repository boundaries, and an extraction invocation boundary.
 - Added the initial PostgreSQL schema with RLS policies for profiles, books, chapters, extraction runs, candidates, vocabulary, and reading progress.
 - Added a server-side Gemini 2.5 Flash Edge Function with authentication checks, JSON output handling, quota errors, and the 500-word chapter limit.
+
+## 0.3.1 — Supabase library integration
+
+- Applied and hardened the initial Supabase schema, including RLS policy and trigger-permission fixes.
+- Connected email/password Auth and user-owned book/chapter repositories to the library workflow.
+- Removed hard-coded prototype books from the configured Supabase path; empty accounts now receive an empty-library state.
+- Opened persisted chapters in the reader with their actual source text and made the new-chapter form choose the next available chapter number.

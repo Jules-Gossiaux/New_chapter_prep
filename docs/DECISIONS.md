@@ -16,6 +16,10 @@ Supabase is the selected backend for the first real backend phase because it com
 
 No usage-plan limits are implemented yet. Provider failures and quota errors have stable error codes and user-safe messages so future free/gold/premium limits can be added without changing the UI contract.
 
+## 2026-09-18 — Frequency-guided extraction
+
+English and French extraction uses the top 10,000 OpenSubtitles frequency forms server-side. A book's stored learner level supplies a fixed initial cutoff, which the user may update from chapter setup. The Edge Function does deterministic token/rank filtering first and sends Gemini only selected sentence contexts. Chapters are guarded at 50,000 words rather than by the former model-context limit. The configured model is `gemini-3.5-flash-lite`: the predecessor returned a provider 404 and `gemini-3.6-flash` returned a high-demand response for this project.
+
 ## Open decisions
 
 - PWA versus native/shared architecture.

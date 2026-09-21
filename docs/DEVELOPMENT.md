@@ -1,16 +1,18 @@
 # Development
 
-Install Node.js and run `npm install`. Use `npm run dev` for the Vite server. Use `npm run build` for a production build. Keep changes focused and update docs for architectural decisions. The app currently has no backend or required environment variables.
+Install Node.js and run `npm install`. Use `npm run dev` for the Vite server. Use `npm run build` for a production build. Keep changes focused and update docs for architectural decisions. The official Supabase Codex plugin is installed locally; see [SUPABASE_SETUP.md](SUPABASE_SETUP.md) for the required restart, OAuth and verification status.
 
 ## Supabase setup
 
-1. Create a Supabase project.
-2. Copy `.env.example` to `.env.local` and fill `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
-3. Apply the SQL migration through the Supabase SQL Editor or Supabase CLI (`npx supabase db push` after linking the project).
-4. Set `GEMINI_API_KEY` as an Edge Function secret; never put it in `.env.local` or frontend code.
-5. Deploy `supabase/functions/extract-vocabulary` when the project is ready.
+1. The hosted project `New_chapter_prep` (`auubivhhifkasnlsmine`, `eu-west-1`) is active and reachable through Supabase MCP.
+2. The initial schema, RLS hardening, trigger permission, and vocabulary-extraction migrations are applied. Verify changes through Supabase MCP before adding another migration.
+3. `.env.local` is local-only and contains `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Restart Vite after changing either value.
+4. Email/password Auth and book/chapter persistence are live when the user is signed in. A new account has an empty library until it creates a book.
+5. Set `GEMINI_API_KEY` as an Edge Function secret; never put it in `.env.local` or frontend code. The dashboard path is Project Settings → Edge Functions → Secrets.
+6. `vocabulary_frequency` is server-only and currently contains the top 10,000 source entries for English and French from `orgtre/top-open-subtitles-sentences`. RLS intentionally grants no browser read policy.
+7. Deploy `supabase/functions/extract-vocabulary` and `supabase/functions/translate-word` after the secret is configured and test them using an authenticated account.
 
-The checked-in migration and function are implementation foundations and have not been deployed against a live Supabase project yet.
+The schema and Auth-backed book/chapter path are live. The Edge Function is deployed separately from the frontend build; it remains unavailable until `GEMINI_API_KEY` is configured and an authenticated extraction has been verified.
 
 ## Git handoff
 

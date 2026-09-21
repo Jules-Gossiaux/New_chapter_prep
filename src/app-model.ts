@@ -3,12 +3,14 @@ export type View =
   | 'auth'
   | 'library'
   | 'newBook'
+  | 'pdfImport'
   | 'book'
   | 'chapter'
   | 'review'
   | 'prepare'
   | 'reader'
-  | 'vocabulary';
+  | 'vocabulary'
+  | 'settings';
 export type Candidate = {
   id: string;
   bookId: string;
@@ -25,6 +27,9 @@ export type ChapterPreview = {
   title: string;
   words: number;
   status: 'Ready' | 'Not started' | 'In progress';
+  sourceText?: string;
+  language?: string;
+  learnerLevel?: string;
 };
 export type DemoBook = {
   id: string;
@@ -36,6 +41,19 @@ export type DemoBook = {
   cover: string;
   chapters: ChapterPreview[];
 };
+
+export function sortChapterPreviews(chapters: ChapterPreview[]) {
+  return [...chapters].sort((a, b) => a.number - b.number);
+}
+
+export function displayNameFromEmail(email: string | null | undefined) {
+  const firstWord = email
+    ?.split('@')[0]
+    ?.split(/[._\-\s]+/u)[0]
+    ?.trim();
+  if (!firstWord) return null;
+  return firstWord.charAt(0).toUpperCase() + firstWord.slice(1).toLowerCase();
+}
 
 export const candidates: Candidate[] = [
   {
