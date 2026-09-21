@@ -260,7 +260,13 @@ The chapter count updates live as the target changes. Chapter boundaries are
 created automatically, preferring the last paragraph before the target size and
 falling back to the nearest sentence when a paragraph is too long. Imported
 chapters are saved as unprocessed chapters; the existing chapter preparation
-choices are shown when the user selects Process chapter.
+choices are shown when the user selects Process chapter. The target size is
+applied to the complete extracted text, including page-sized PDF text blocks,
+so changing the slider immediately changes the chapter count and the chapters
+created on import. Once vocabulary extraction succeeds, the chapter is marked
+ready and is not offered for processing again unless its content is edited.
+When processing a chapter, its language and learner level can override the
+book defaults and are persisted with the chapter.
 
 ### Suggested vocabulary review
 
@@ -378,6 +384,12 @@ The user can preview and edit an export, choose CSV or TXT formatting with a con
 ### FR-10 — Process imported chapters explicitly
 
 Imported chapters remain unprocessed until the user selects the existing chapter preparation action from the Chapters view.
+
+### FR-11 — Configure a chapter independently
+
+When processing an existing chapter, the user can change its target language and
+learner level independently from the book defaults. The selected values are
+saved before vocabulary extraction and are used by the extraction service.
 
 ### FR-11 — Recover from failure
 
