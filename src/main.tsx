@@ -30,6 +30,11 @@ import {
 } from './lib/books';
 import { extractVocabulary, translateVocabularyWord } from './lib/extraction';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
+import {
+  filterVocabularyForExport,
+  formatVocabularyExport,
+  type VocabularyExportFormat,
+} from './export';
 import './styles.css';
 
 type IconName =
@@ -1884,7 +1889,17 @@ function Reader({
             <button onClick={() => go('vocabulary')}>
               <Icon name="bookmark" />
             </button>
-            <button onClick={() => exportVocabulary(exportEntries, book.id)}>
+            <button
+              onClick={() =>
+                downloadVocabularyExport(
+                  formatVocabularyExport(
+                    filterVocabularyForExport(exportEntries, book.id),
+                    { separator: ',', includeContext: true, format: 'csv' },
+                  ),
+                  'csv',
+                )
+              }
+            >
               <Icon name="download" />
             </button>
           </div>
@@ -2085,19 +2100,17 @@ function Reader({
     </AppShell>
   );
 }
-function exportVocabulary(entries: SavedVocabularyItem[], bookId?: string) {
-  const rows = entries.filter((entry) => !bookId || entry.bookId === bookId);
-  const csv = [
-    ['Front', 'Back', 'Context'],
-    ...rows.map((entry) => [entry.word, entry.translation, entry.context]),
-  ]
-    .map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(','))
-    .join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+function downloadVocabularyExport(
+  text: string,
+  format: VocabularyExportFormat,
+) {
+  const extension = format === 'csv' ? 'csv' : 'txt';
+  const mimeType = format === 'csv' ? 'text/csv' : 'text/plain';
+  const blob = new Blob([text], { type: `${mimeType};charset=utf-8` });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'chapterprep-vocabulary.csv';
+  link.download = `chapterprep-vocabulary.${extension}`;
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -2120,6 +2133,16 @@ function Vocabulary({
   const [sort, setSort] = useState('newest');
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportFormat, setExportFormat] =
+    useState<VocabularyExportFormat>('csv');
+  const [separatorChoice, setSeparatorChoice] = useState('comma');
+  const [customSeparator, setCustomSeparator] = useState('|');
+  const [includeContext, setIncludeContext] = useState(true);
+  const [editedExportText, setEditedExportText] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>(
+    'idle',
+  );
   const savedWords = isSupabaseConfigured
     ? entries
     : Array.from(saved).map((word) => ({
@@ -2131,11 +2154,55 @@ function Vocabulary({
   const filteredWords = savedWords.filter(
     (word) =>
       (bookFilter === 'all' || word.bookId === bookFilter) &&
-      word.word.toLowerCase().includes(query.toLowerCase()),
+      [word.word, word.translation]
+        .join(' ')
+        .toLowerCase()
+        .includes(query.toLowerCase()),
   );
   const words = [...filteredWords].sort((a, b) =>
     sort === 'alphabetical' ? a.word.localeCompare(b.word) : 0,
   );
+  const exportEntries = filterVocabularyForExport(
+    savedWords,
+    bookFilter === 'all' ? undefined : bookFilter,
+  );
+  const separator =
+    separatorChoice === 'comma'
+      ? ','
+      : separatorChoice === 'semicolon'
+        ? ';'
+        : separatorChoice === 'tab'
+          ? '\t'
+          : customSeparator || '|';
+  const exportText = formatVocabularyExport(exportEntries, {
+    separator,
+    includeContext,
+    format: exportFormat,
+  });
+  const previewText = editedExportText ?? exportText;
+  useEffect(() => {
+    if (exportOpen) setEditedExportText(null);
+  }, [
+    bookFilter,
+    customSeparator,
+    exportFormat,
+    exportOpen,
+    includeContext,
+    separatorChoice,
+  ]);
+  const openExport = () => {
+    setCopyStatus('idle');
+    setEditedExportText(null);
+    setExportOpen(true);
+  };
+  const copyExport = async () => {
+    try {
+      await navigator.clipboard.writeText(previewText);
+      setCopyStatus('copied');
+    } catch {
+      setCopyStatus('error');
+    }
+  };
   return (
     <AppShell view="vocabulary" go={go} savedCount={saved.size}>
       <main className="content narrow">
@@ -2145,22 +2212,15 @@ function Vocabulary({
             <h1>Vocabulary worth keeping.</h1>
             <p>Words you’ve chosen to carry into your next chapter.</p>
           </div>
-          <Button
-            onClick={() =>
-              exportVocabulary(
-                savedWords,
-                bookFilter === 'all' ? undefined : bookFilter,
-              )
-            }
-          >
-            <Icon name="download" /> Export CSV
+          <Button onClick={openExport}>
+            <Icon name="download" /> Export
           </Button>
         </div>
         <div className="vocabulary-toolbar">
           <div className="search-box">
             <Icon name="search" />
             <input
-              placeholder="Search your words"
+              placeholder="Search words or translations"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -2258,17 +2318,146 @@ function Vocabulary({
               CSV export is ready for Anki or your own study workflow.
             </small>
           </span>
-          <button
-            onClick={() =>
-              exportVocabulary(
-                savedWords,
-                bookFilter === 'all' ? undefined : bookFilter,
-              )
-            }
-          >
+          <button onClick={openExport}>
             Export <Icon name="arrow" />
           </button>
         </div>
+        {exportOpen && (
+          <div
+            className="editor-modal-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setExportOpen(false);
+            }}
+          >
+            <section
+              className="editor-modal export-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="export-title"
+            >
+              <div className="editor-modal-head">
+                <div>
+                  <span className="kicker">YOUR VOCABULARY</span>
+                  <h2 id="export-title">Choose your export.</h2>
+                </div>
+                <button
+                  className="icon-button"
+                  aria-label="Close export dialog"
+                  onClick={() => setExportOpen(false)}
+                >
+                  <Icon name="close" />
+                </button>
+              </div>
+              <div className="export-options">
+                <label>
+                  <span>File type</span>
+                  <select
+                    value={exportFormat}
+                    onChange={(event) => {
+                      setExportFormat(
+                        event.target.value as VocabularyExportFormat,
+                      );
+                      setEditedExportText(null);
+                    }}
+                  >
+                    <option value="csv">CSV</option>
+                    <option value="txt">TXT</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Between each field</span>
+                  <select
+                    value={separatorChoice}
+                    onChange={(event) => {
+                      setSeparatorChoice(event.target.value);
+                      setEditedExportText(null);
+                    }}
+                  >
+                    <option value="comma">Comma (,)</option>
+                    <option value="semicolon">Semicolon (;)</option>
+                    <option value="tab">Tabulation</option>
+                    <option value="custom">Custom character</option>
+                  </select>
+                </label>
+                {separatorChoice === 'custom' && (
+                  <label>
+                    <span>Custom separator</span>
+                    <input
+                      value={customSeparator}
+                      maxLength={4}
+                      onChange={(event) => {
+                        setCustomSeparator(event.target.value);
+                        setEditedExportText(null);
+                      }}
+                      placeholder="|"
+                    />
+                  </label>
+                )}
+                <label className="export-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={includeContext}
+                    onChange={(event) => {
+                      setIncludeContext(event.target.checked);
+                      setEditedExportText(null);
+                    }}
+                  />
+                  <span>Include examples</span>
+                </label>
+              </div>
+              <div className="export-preview-head">
+                <div>
+                  <b>Live preview</b>
+                  <small>
+                    {exportEntries.length} word
+                    {exportEntries.length === 1 ? '' : 's'}
+                    {bookFilter !== 'all' ? ' · selected book only' : ''}
+                  </small>
+                </div>
+                <code>{separator === '\t' ? 'TAB' : separator}</code>
+              </div>
+              <textarea
+                className="export-preview"
+                aria-label="Editable export preview"
+                value={
+                  exportEntries.length
+                    ? previewText
+                    : 'No vocabulary matches this book.'
+                }
+                onChange={(event) => setEditedExportText(event.target.value)}
+                spellCheck={false}
+              />
+              {copyStatus === 'copied' && (
+                <p className="form-success" role="status">
+                  Copied to clipboard.
+                </p>
+              )}
+              {copyStatus === 'error' && (
+                <p className="form-error" role="alert">
+                  Unable to copy automatically. You can select the preview
+                  manually.
+                </p>
+              )}
+              <div className="editor-modal-actions">
+                <Button variant="outline" onClick={() => setExportOpen(false)}>
+                  Cancel
+                </Button>
+                <Button variant="outline" onClick={() => void copyExport()}>
+                  Copy
+                </Button>
+                <Button
+                  onClick={() =>
+                    downloadVocabularyExport(previewText, exportFormat)
+                  }
+                  disabled={!exportEntries.length}
+                >
+                  Download .{exportFormat} <Icon name="download" />
+                </Button>
+              </div>
+            </section>
+          </div>
+        )}
       </main>
     </AppShell>
   );
