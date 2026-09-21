@@ -2139,6 +2139,7 @@ function Vocabulary({
   const [separatorChoice, setSeparatorChoice] = useState('comma');
   const [customSeparator, setCustomSeparator] = useState('|');
   const [includeContext, setIncludeContext] = useState(true);
+  const [editedExportText, setEditedExportText] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>(
     'idle',
   );
@@ -2153,7 +2154,10 @@ function Vocabulary({
   const filteredWords = savedWords.filter(
     (word) =>
       (bookFilter === 'all' || word.bookId === bookFilter) &&
-      word.word.toLowerCase().includes(query.toLowerCase()),
+      [word.word, word.translation]
+        .join(' ')
+        .toLowerCase()
+        .includes(query.toLowerCase()),
   );
   const words = [...filteredWords].sort((a, b) =>
     sort === 'alphabetical' ? a.word.localeCompare(b.word) : 0,
@@ -2175,13 +2179,25 @@ function Vocabulary({
     includeContext,
     format: exportFormat,
   });
+  const previewText = editedExportText ?? exportText;
+  useEffect(() => {
+    if (exportOpen) setEditedExportText(null);
+  }, [
+    bookFilter,
+    customSeparator,
+    exportFormat,
+    exportOpen,
+    includeContext,
+    separatorChoice,
+  ]);
   const openExport = () => {
     setCopyStatus('idle');
+    setEditedExportText(null);
     setExportOpen(true);
   };
   const copyExport = async () => {
     try {
-      await navigator.clipboard.writeText(exportText);
+      await navigator.clipboard.writeText(previewText);
       setCopyStatus('copied');
     } catch {
       setCopyStatus('error');
@@ -2204,7 +2220,7 @@ function Vocabulary({
           <div className="search-box">
             <Icon name="search" />
             <input
-              placeholder="Search your words"
+              placeholder="Search words or translations"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -2338,11 +2354,12 @@ function Vocabulary({
                   <span>File type</span>
                   <select
                     value={exportFormat}
-                    onChange={(event) =>
+                    onChange={(event) => {
                       setExportFormat(
                         event.target.value as VocabularyExportFormat,
-                      )
-                    }
+                      );
+                      setEditedExportText(null);
+                    }}
                   >
                     <option value="csv">CSV</option>
                     <option value="txt">TXT</option>
@@ -2352,7 +2369,10 @@ function Vocabulary({
                   <span>Between each field</span>
                   <select
                     value={separatorChoice}
-                    onChange={(event) => setSeparatorChoice(event.target.value)}
+                    onChange={(event) => {
+                      setSeparatorChoice(event.target.value);
+                      setEditedExportText(null);
+                    }}
                   >
                     <option value="comma">Comma (,)</option>
                     <option value="semicolon">Semicolon (;)</option>
@@ -2366,9 +2386,10 @@ function Vocabulary({
                     <input
                       value={customSeparator}
                       maxLength={4}
-                      onChange={(event) =>
-                        setCustomSeparator(event.target.value)
-                      }
+                      onChange={(event) => {
+                        setCustomSeparator(event.target.value);
+                        setEditedExportText(null);
+                      }}
                       placeholder="|"
                     />
                   </label>
@@ -2377,9 +2398,10 @@ function Vocabulary({
                   <input
                     type="checkbox"
                     checked={includeContext}
-                    onChange={(event) =>
-                      setIncludeContext(event.target.checked)
-                    }
+                    onChange={(event) => {
+                      setIncludeContext(event.target.checked);
+                      setEditedExportText(null);
+                    }}
                   />
                   <span>Include examples</span>
                 </label>
@@ -2395,11 +2417,17 @@ function Vocabulary({
                 </div>
                 <code>{separator === '\t' ? 'TAB' : separator}</code>
               </div>
-              <pre className="export-preview">
-                {exportEntries.length
-                  ? exportText
-                  : 'No vocabulary matches this book.'}
-              </pre>
+              <textarea
+                className="export-preview"
+                aria-label="Editable export preview"
+                value={
+                  exportEntries.length
+                    ? previewText
+                    : 'No vocabulary matches this book.'
+                }
+                onChange={(event) => setEditedExportText(event.target.value)}
+                spellCheck={false}
+              />
               {copyStatus === 'copied' && (
                 <p className="form-success" role="status">
                   Copied to clipboard.
@@ -2420,7 +2448,7 @@ function Vocabulary({
                 </Button>
                 <Button
                   onClick={() =>
-                    downloadVocabularyExport(exportText, exportFormat)
+                    downloadVocabularyExport(previewText, exportFormat)
                   }
                   disabled={!exportEntries.length}
                 >

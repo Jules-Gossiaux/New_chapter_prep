@@ -3276,6 +3276,10 @@ html[data-theme='dark'] textarea::placeholder {
   color: #93a89a;
 }
 
+html[data-theme='dark'] .search-box input {
+  background: transparent;
+}
+
 html[data-theme='dark'] .button-primary {
   background: #64bc8d;
   color: #092016;
