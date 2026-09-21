@@ -419,6 +419,18 @@ function Auth({ go }: { go: (view: View) => void }) {
                   String(form.get('email')),
                   String(form.get('password')),
                 );
+                if (
+                  mode === 'signup' &&
+                  !result.preview &&
+                  'existingAccount' in result &&
+                  result.existingAccount
+                ) {
+                  setMode('login');
+                  setError(
+                    'This email is already registered. Use Log in instead.',
+                  );
+                  return;
+                }
                 if (mode === 'signup' && !result.preview && !result.session) {
                   setError(
                     'Check your email to confirm your account, then log in.',
@@ -563,10 +575,8 @@ function AppShell({
               {(account.label?.trim().charAt(0) || 'Y').toUpperCase()}
             </span>
             <span>
-              <b>{account.label || 'Your account'}</b>
-              <small>
-                {isSupabaseConfigured ? 'Signed in account' : 'Preview account'}
-              </small>
+              <b>Your account</b>
+              <small>{account.label || 'Preview account'}</small>
             </span>
             <span className="profile-more">•••</span>
           </button>

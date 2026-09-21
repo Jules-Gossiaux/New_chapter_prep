@@ -599,7 +599,7 @@ select:focus-visible {
 }
 .auth-side {
   position: relative;
-  padding: 35px max(40px, calc((100vw - 1240px) / 2));
+  padding: 35px clamp(24px, 5vw, 96px);
   background: var(--green-deep);
   color: #fff;
   display: flex;
@@ -638,7 +638,8 @@ select:focus-visible {
   max-width: 450px;
 }
 .auth-form-side {
-  padding: 35px max(40px, calc((100vw - 1240px) / 2));
+  min-width: 0;
+  padding: 35px clamp(24px, 5vw, 96px);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -666,7 +667,7 @@ select:focus-visible {
 .auth-card {
   max-width: 430px;
   width: 100%;
-  margin: auto;
+  margin: 0 auto;
 }
 .auth-head .kicker {
   color: var(--coral);
@@ -3444,6 +3445,11 @@ html[data-theme='dark'] .profile b {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+html[data-theme='dark'] .profile:hover {
+  background: #294535;
+  color: var(--ink);
 }
 
 html[data-theme='dark'] .account-menu {

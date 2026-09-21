@@ -14,7 +14,12 @@ export async function signUp(email: string, password: string) {
   if (!supabase) return { preview: true } as const;
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw error;
-  return { preview: false, user: data.user, session: data.session } as const;
+  return {
+    preview: false,
+    user: data.user,
+    session: data.session,
+    existingAccount: Boolean(data.user && data.user.identities?.length === 0),
+  } as const;
 }
 
 export async function getCurrentUser() {
