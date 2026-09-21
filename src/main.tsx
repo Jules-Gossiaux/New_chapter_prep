@@ -10,7 +10,7 @@ import {
   type View,
 } from './app-model';
 import { countWords, MAX_CHAPTER_WORDS } from './domain';
-import { getCurrentUser, signIn, signUp } from './lib/auth';
+import { getCurrentUser, signIn, signOut, signUp } from './lib/auth';
 import {
   createBackendBook,
   createBackendChapter,
@@ -75,14 +75,28 @@ function Icon({ name }: { name: IconName }) {
     </svg>
   );
 }
-function Logo({ light = false }: { light?: boolean }) {
-  return (
-    <div className={`logo ${light ? 'logo-light' : ''}`}>
+function Logo({
+  light = false,
+  onClick,
+}: {
+  light?: boolean;
+  onClick?: () => void;
+}) {
+  const content = (
+    <>
       <span className="logo-mark">C</span>
       <span>
         chapter<span className="logo-accent">prep</span>
       </span>
-    </div>
+    </>
+  );
+  const className = `logo ${light ? 'logo-light' : ''}`;
+  return onClick ? (
+    <button className={`${className} logo-button`} onClick={onClick}>
+      {content}
+    </button>
+  ) : (
+    <div className={className}>{content}</div>
   );
 }
 function Button({
@@ -486,6 +500,10 @@ function Auth({ go }: { go: (view: View) => void }) {
 }
 
 const VocabularyCountContext = React.createContext(0);
+const AccountContext = React.createContext<{
+  label: string | null;
+  onSignOut: () => Promise<void>;
+}>({ label: null, onSignOut: async () => undefined });
 
 function AppShell({
   children,
@@ -499,8 +517,10 @@ function AppShell({
   savedCount?: number;
 }) {
   const vocabularyCount = React.useContext(VocabularyCountContext);
+  const account = React.useContext(AccountContext);
   savedCount = savedCount ?? vocabularyCount;
   const [open, setOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const nav = (target: View) => {
     go(target);
     setOpen(false);
@@ -509,21 +529,13 @@ function AppShell({
     <div className="app-shell">
       <aside className={`sidebar ${open ? 'open' : ''}`}>
         <div className="sidebar-top">
-          <Logo />
+          <Logo onClick={() => nav('library')} />
           <button className="sidebar-close" onClick={() => setOpen(false)}>
             <Icon name="close" />
           </button>
         </div>
-        <div className="workspace">
-          <span className="workspace-label">WORKSPACE</span>
-          <button className="workspace-select">
-            <span className="workspace-avatar">Y</span>
-            <span>Your library</span>
-            <Icon name="chevron" />
-          </button>
-        </div>
         <nav className="app-nav">
-          <span className="workspace-label">MENU</span>
+          <span className="nav-label">MENU</span>
           <NavItem
             icon="grid"
             label="Overview"
@@ -542,14 +554,35 @@ function AppShell({
           <button className="sidebar-link" onClick={() => nav('settings')}>
             <Icon name="settings" /> Settings
           </button>
-          <div className="profile">
-            <span className="profile-avatar">Y</span>
+          <button
+            className="profile"
+            onClick={() => setAccountOpen((value) => !value)}
+            aria-expanded={accountOpen}
+          >
+            <span className="profile-avatar">
+              {(account.label?.trim().charAt(0) || 'Y').toUpperCase()}
+            </span>
             <span>
-              <b>Your account</b>
-              <small>Personal workspace</small>
+              <b>{account.label || 'Your account'}</b>
+              <small>
+                {isSupabaseConfigured ? 'Signed in account' : 'Preview account'}
+              </small>
             </span>
             <span className="profile-more">•••</span>
-          </div>
+          </button>
+          {accountOpen && (
+            <div className="account-menu">
+              <span>{account.label || 'Preview mode'}</span>
+              <button
+                onClick={() => {
+                  setAccountOpen(false);
+                  void account.onSignOut();
+                }}
+              >
+                {isSupabaseConfigured ? 'Sign out' : 'Leave preview'}
+              </button>
+            </div>
+          )}
         </div>
       </aside>
       {open && (
@@ -568,7 +601,7 @@ function AppShell({
             <Icon name="menu" />
           </button>
           <div className="mobile-brand">
-            <Logo />
+            <Logo onClick={() => go('library')} />
           </div>
           <div className="header-spacer" />
           <span className="header-status">
@@ -2282,6 +2315,27 @@ function App() {
     setSaved(new Set(entries.map((entry) => entry.word)));
   };
 
+  const addWordToReaderList = (word: WordDetails) => {
+    setCandidateItems((old) => {
+      const normalized = word.word.toLocaleLowerCase();
+      if (
+        old.some(
+          (candidate) => candidate.word.toLocaleLowerCase() === normalized,
+        )
+      ) {
+        return old;
+      }
+      return [
+        {
+          ...word,
+          id: `saved-${normalized}`,
+          bookId: selectedBook?.id ?? word.bookId,
+        },
+        ...old,
+      ];
+    });
+  };
+
   const saveWord = async (word: WordDetails) => {
     if (!isSupabaseConfigured) {
       setSaved((old) => new Set(old).add(word.word));
@@ -2297,6 +2351,7 @@ function App() {
             entry.word.toLocaleLowerCase() !== word.word.toLocaleLowerCase(),
         ),
       ]);
+      addWordToReaderList(word);
       return;
     }
     if (!selectedChapter) throw new Error('SELECT_CHAPTER_REQUIRED');
@@ -2304,6 +2359,7 @@ function App() {
       chapterId: selectedChapter.id,
       entries: [word],
     });
+    addWordToReaderList(word);
     await refreshVocabulary();
   };
 
@@ -2638,6 +2694,21 @@ function App() {
     );
     go('review');
   };
+  const handleSignOut = async () => {
+    await signOut();
+    setUserLabel(null);
+    setBooks(isSupabaseConfigured ? [] : demoBooks);
+    setSelectedBook(isSupabaseConfigured ? null : demoBooks[0]);
+    setSelectedChapter(null);
+    setCandidateItems(isSupabaseConfigured ? [] : candidates);
+    setVocabularyEntries([]);
+    setSaved(
+      isSupabaseConfigured
+        ? new Set()
+        : new Set(['discerning', 'unsettling', 'to linger', 'faintly']),
+    );
+    setView('landing');
+  };
   const page = useMemo(() => {
     if (!authReady) return null;
     if (view === 'landing') return <Landing go={go} />;
@@ -2809,9 +2880,13 @@ function App() {
     theme,
   ]);
   return (
-    <VocabularyCountContext.Provider value={saved.size}>
-      {page}
-    </VocabularyCountContext.Provider>
+    <AccountContext.Provider
+      value={{ label: userLabel, onSignOut: handleSignOut }}
+    >
+      <VocabularyCountContext.Provider value={saved.size}>
+        {page}
+      </VocabularyCountContext.Provider>
+    </AccountContext.Provider>
   );
 }
 createRoot(document.getElementById('root')!).render(<App />);

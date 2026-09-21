@@ -83,6 +83,13 @@ select:focus-visible {
   background: var(--coral);
   color: #fff;
 }
+.logo-button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
 .button {
   display: inline-flex;
   align-items: center;
@@ -717,10 +724,12 @@ select:focus-visible {
 [data-theme='dark'] .continue-card,
 [data-theme='dark'] .vocab-card,
 [data-theme='dark'] .candidate-card,
-[data-theme='dark'] .mini-word,
-[data-theme='dark'] .workspace-select {
+[data-theme='dark'] .mini-word {
   background: #1c2921;
   border-color: #40574a;
+  color: var(--ink);
+}
+[data-theme='dark'] .profile {
   color: var(--ink);
 }
 [data-theme='dark'] .button-outline {
@@ -942,7 +951,7 @@ textarea::placeholder {
 .sidebar-close {
   display: none;
 }
-.workspace-label {
+.nav-label {
   display: block;
   color: #a0aca5;
   font-size: 9px;
@@ -950,25 +959,6 @@ textarea::placeholder {
   font-weight: 700;
   margin: 0 10px 10px;
 }
-.workspace-select {
-  width: 100%;
-  border: 1px solid #e5e8e1;
-  background: #fafbf8;
-  border-radius: 10px;
-  padding: 9px 10px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  text-align: left;
-  color: var(--green-deep);
-  font-size: 12px;
-}
-.workspace-select .icon {
-  margin-left: auto;
-  width: 14px;
-  color: #899890;
-}
-.workspace-avatar,
 .profile-avatar,
 .header-avatar {
   display: grid;
@@ -977,11 +967,6 @@ textarea::placeholder {
   color: #8b5a44;
   border-radius: 50%;
   font-weight: 700;
-}
-.workspace-avatar {
-  width: 25px;
-  height: 25px;
-  font-size: 10px;
 }
 .app-nav {
   display: grid;
@@ -1029,9 +1014,20 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   gap: 9px;
+  width: 100%;
+  border: 0;
+  background: transparent;
   padding: 10px;
   border-top: 1px solid #eef0eb;
   padding-top: 22px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.profile:hover {
+  background: #edf4ee;
+  border-radius: 9px;
 }
 .profile-avatar {
   width: 29px;
@@ -1052,6 +1048,32 @@ textarea::placeholder {
   margin-left: auto;
   color: #9ca8a1;
   letter-spacing: 2px;
+}
+.account-menu {
+  display: grid;
+  gap: 9px;
+  margin: -16px 10px 0;
+  padding: 11px 12px;
+  border: 1px solid #e5e8e1;
+  border-radius: 9px;
+  background: #fafbf8;
+  color: var(--muted);
+  font-size: 10px;
+}
+.account-menu span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-menu button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--coral);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
 }
 .app-main {
   min-width: 0;
@@ -3117,11 +3139,9 @@ html[data-theme='dark'] .prep-card,
 html[data-theme='dark'] .vocab-card,
 html[data-theme='dark'] .vocab-empty,
 html[data-theme='dark'] .search-box,
-html[data-theme='dark'] .workspace-select {
+html[data-theme='dark'] .account-menu {
   background: #1b2822;
   border-color: #3a5145;
-  box-shadow: none;
-  color: var(--ink);
 }
 
 html[data-theme='dark'] .chapter-card:hover,
@@ -3187,7 +3207,7 @@ html[data-theme='dark'] .sidebar-link:hover {
   background: #284a39;
 }
 
-html[data-theme='dark'] .workspace-label,
+html[data-theme='dark'] .nav-label,
 html[data-theme='dark'] .kicker,
 html[data-theme='dark'] .reading-meta,
 html[data-theme='dark'] .book-cover small,
