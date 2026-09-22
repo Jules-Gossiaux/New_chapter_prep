@@ -184,9 +184,11 @@ Users can:
 
 ### 6.8 Anki export
 
-The MVP should provide a reliable export format such as CSV or a documented Anki-compatible text format.
-
-Full `.apkg` import/export should be treated as a separate technical milestone. Do not describe CSV export as full Anki compatibility. The export contract must document fields, escaping, duplicates and supported card content.
+The current export supports CSV, TXT and a browser-generated `.apkg` package.
+The package contains one Basic-style deck with Word, Translation and optional
+Example fields. Full Anki import and review synchronization remain out of
+scope; the export contract documents fields, escaping, duplicates and supported
+card content.
 
 ### 6.9 Accounts and persistence
 
@@ -319,7 +321,13 @@ Content:
 Vocabulary export opens a live preview where the user can edit the output,
 choose CSV or TXT, include or omit examples, select a comma, semicolon, tab or
 custom separator, copy the result, or download it. A selected book filter
-limits the export to that book's vocabulary.
+limits the export to that book's vocabulary. The export also supports a valid
+Anki `.apkg` package with a deck named after the selected book (or chapter),
+using the word as the front and translation/context as the back.
+
+The book detail page provides Chapters and Vocabulary tabs. The Vocabulary tab
+uses the same list, search, removal and export behavior scoped to that book.
+The reader exposes direct CSV and Anki exports scoped to the current chapter.
 
 ## 8. UX and visual direction
 
@@ -353,6 +361,12 @@ Given valid chapter text, the user can save a chapter under a book with number/t
 
 Given a text-based PDF and a target chapter size between 200 and 3000 words, the system extracts the text, splits it into ordered chapters at paragraph or sentence boundaries, and saves those chapters as unprocessed. Scanned or otherwise non-extractable PDFs are rejected with a recoverable error.
 
+### FR-2b — Detect imported language
+
+When a user imports a PDF or pastes chapter text, the application detects a
+supported source language and uses it as the initial book or chapter language.
+The user can review and override the detected value before saving or processing.
+
 ### FR-3 — Preserve source text
 
 The exact normalized source text must remain recoverable even if generated vocabulary or annotations are edited.
@@ -379,7 +393,10 @@ The user can save a word globally, edit its meaning/notes and remove it later.
 
 ### FR-9 — Export
 
-The user can preview and edit an export, choose CSV or TXT formatting with a configurable separator, optionally include examples, copy the result, and download it. When a book filter is selected, only vocabulary from that book is exported.
+The user can preview and edit an export, choose CSV, TXT or Anki `.apkg`
+formatting, optionally include examples, copy text exports, and download it.
+When a book or chapter scope is selected, only vocabulary linked to that scope
+is exported.
 
 ### FR-10 — Process imported chapters explicitly
 
@@ -391,7 +408,14 @@ When processing an existing chapter, the user can change its target language and
 learner level independently from the book defaults. The selected values are
 saved before vocabulary extraction and are used by the extraction service.
 
-### FR-11 — Recover from failure
+### FR-12 — Delete an account
+
+An authenticated user can permanently delete their account from Settings after
+confirming their password. The operation removes the Auth user and cascades to
+the user's books, chapters, vocabulary and reading data. The service-role key
+must remain server-side in a protected Edge Function.
+
+### FR-13 — Recover from failure
 
 Extraction, import and persistence failures must show a useful error and preserve recoverable user input.
 
@@ -476,7 +500,7 @@ Scanned PDF OCR, DRM bypass, layout-perfect book reconstruction and automatic ch
 - CEFR filtering/priority rules.
 - Extraction response validation.
 - Candidate acceptance/rejection.
-- Export escaping and deterministic output.
+- Export escaping, deterministic output and valid Anki package structure.
 - Reading-progress calculations.
 - Data validation.
 
@@ -499,6 +523,25 @@ Cover at least:
 - Open reader and select a word.
 - Edit/remove a saved word.
 - Export vocabulary.
+- Export vocabulary from a book and from a chapter.
+- The book and chapter export actions use the same export controls and support
+  CSV, TXT and Anki `.apkg`; Anki exports never include context examples.
+- Anki exports let the learner choose cards in the word-to-translation direction,
+  the translation-to-word direction, or both directions.
+- The reader text-size controls clearly indicate decrease/increase actions and
+  do not include a redundant middle control.
+- The application sidebar keeps Settings and the account control fixed at the
+  bottom of the viewport; the account menu opens upward without requiring a
+  second scroll.
+- Deleting a book also removes vocabulary entries that are no longer linked to
+  any other book, while preserving shared vocabulary.
+- Chapter numbers are assigned automatically using the lowest available number;
+  users do not enter chapter numbers manually.
+- Detect language for pasted/imported text.
+- Show the detected language in chapter forms and warn when the selected
+  language differs; require an explicit confirmation before vocabulary
+  processing continues in that situation.
+- Confirm account deletion with an incorrect and a correct password.
 - Recover from an extraction error.
 
 ### Acceptance criteria

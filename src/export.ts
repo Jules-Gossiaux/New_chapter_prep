@@ -5,6 +5,8 @@ export type VocabularyExportEntry = {
   translation: string;
   context: string;
   bookId: string;
+  bookIds?: string[];
+  chapterIds?: string[];
 };
 
 export type VocabularyExportOptions = {
@@ -16,8 +18,13 @@ export type VocabularyExportOptions = {
 export function filterVocabularyForExport(
   entries: VocabularyExportEntry[],
   bookId?: string,
+  chapterId?: string,
 ) {
-  return entries.filter((entry) => !bookId || entry.bookId === bookId);
+  return entries.filter(
+    (entry) =>
+      (!bookId || entry.bookIds?.includes(bookId) || entry.bookId === bookId) &&
+      (!chapterId || entry.chapterIds?.includes(chapterId)),
+  );
 }
 
 function escapeCell(

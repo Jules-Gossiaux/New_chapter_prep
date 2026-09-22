@@ -11,12 +11,16 @@ const entries: VocabularyExportEntry[] = [
     translation: 'lumineux',
     context: 'A bright room',
     bookId: 'book-one',
+    bookIds: ['book-one'],
+    chapterIds: ['chapter-one'],
   },
   {
     word: 'quiet',
     translation: 'calme',
     context: 'A "quiet" street',
     bookId: 'book-two',
+    bookIds: ['book-two'],
+    chapterIds: ['chapter-two'],
   },
 ];
 
@@ -26,6 +30,12 @@ describe('vocabulary export', () => {
       entries[1],
     ]);
     expect(filterVocabularyForExport(entries)).toEqual(entries);
+  });
+
+  it('exports only entries linked to the selected chapter', () => {
+    expect(
+      filterVocabularyForExport(entries, undefined, 'chapter-two'),
+    ).toEqual([entries[1]]);
   });
 
   it('formats CSV with examples and escaped quotes', () => {

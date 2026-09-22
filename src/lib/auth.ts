@@ -34,3 +34,28 @@ export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
 }
+
+export async function deleteAccount(password: string) {
+  if (!supabase) return { preview: true } as const;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email) throw new Error('AUTH_REQUIRED');
+  const { error } = await supabase.functions.invoke('delete-account', {
+    body: { password },
+  });
+  if (error) {
+    const response =
+      'context' in error && error.context instanceof Response
+        ? error.context
+        : null;
+    if (response) {
+      const payload = (await response.json().catch(() => null)) as {
+        message?: string;
+      } | null;
+      if (payload?.message) throw new Error(payload.message);
+    }
+    throw error;
+  }
+  return { preview: false } as const;
+}

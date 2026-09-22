@@ -43,6 +43,8 @@ export type BackendVocabularyEntry = {
   context: string;
   bookId: string;
   bookTitle: string;
+  bookIds: string[];
+  chapterIds: string[];
   createdAt: string;
 };
 
@@ -190,6 +192,23 @@ export async function updateBackendBook(
 
 export async function deleteBackendBook(bookId: string) {
   const { client } = await requireUser();
+  const { data: chapters, error: chaptersError } = await client
+    .from('chapters')
+    .select('id')
+    .eq('book_id', bookId);
+  if (chaptersError) throw chaptersError;
+  const chapterIds = (chapters ?? []).map((chapter) => String(chapter.id));
+  let vocabularyEntryIds: string[] = [];
+  if (chapterIds.length) {
+    const { data: links, error: linksError } = await client
+      .from('chapter_vocabulary')
+      .select('vocabulary_entry_id')
+      .in('chapter_id', chapterIds);
+    if (linksError) throw linksError;
+    vocabularyEntryIds = Array.from(
+      new Set((links ?? []).map((link) => String(link.vocabulary_entry_id))),
+    );
+  }
   const { data, error } = await client
     .from('books')
     .delete()
@@ -198,6 +217,25 @@ export async function deleteBackendBook(bookId: string) {
     .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error('BOOK_NOT_FOUND_OR_FORBIDDEN');
+
+  if (vocabularyEntryIds.length) {
+    const { data: remainingLinks, error: remainingLinksError } = await client
+      .from('chapter_vocabulary')
+      .select('vocabulary_entry_id')
+      .in('vocabulary_entry_id', vocabularyEntryIds);
+    if (remainingLinksError) throw remainingLinksError;
+    const linkedIds = new Set(
+      (remainingLinks ?? []).map((link) => String(link.vocabulary_entry_id)),
+    );
+    const orphanedIds = vocabularyEntryIds.filter((id) => !linkedIds.has(id));
+    if (orphanedIds.length) {
+      const { error: vocabularyError } = await client
+        .from('vocabulary_entries')
+        .delete()
+        .in('id', orphanedIds);
+      if (vocabularyError) throw vocabularyError;
+    }
+  }
 }
 
 export async function listBackendChapters(bookId: string) {
@@ -317,26 +355,61 @@ export async function listBackendVocabularyEntries() {
   const { data: links, error: linksError } = await client
     .from('chapter_vocabulary')
     .select(
-      'vocabulary_entry_id, source_context, chapters!inner(book_id, title, books!inner(id, title))',
+      'vocabulary_entry_id, source_context, chapters!inner(id, book_id, title, books!inner(id, title))',
     )
     .in('vocabulary_entry_id', entryIds);
   if (linksError) throw linksError;
 
-  const linkByEntryId = new Map(
-    (links ?? []).map((link) => [String(link.vocabulary_entry_id), link]),
-  );
+  const linksByEntryId = new Map<string, Array<Record<string, unknown>>>();
+  for (const link of links ?? []) {
+    const entryId = String(link.vocabulary_entry_id);
+    const existing = linksByEntryId.get(entryId) ?? [];
+    existing.push(link as Record<string, unknown>);
+    linksByEntryId.set(entryId, existing);
+  }
   return entries.map((entry) => {
-    const link = linkByEntryId.get(String(entry.id));
-    const chapter = (link?.chapters ?? {}) as Record<string, unknown>;
+    const entryLinks = linksByEntryId.get(String(entry.id)) ?? [];
+    const firstLink = entryLinks[0];
+    const chapter = (firstLink?.chapters ?? {}) as Record<string, unknown>;
     const book = (chapter.books ?? {}) as Record<string, unknown>;
+    const bookIds = Array.from(
+      new Set(
+        entryLinks
+          .map((link) => {
+            const linkedChapter = (link.chapters ?? {}) as Record<
+              string,
+              unknown
+            >;
+            const linkedBook = (linkedChapter.books ?? {}) as Record<
+              string,
+              unknown
+            >;
+            return String(linkedBook.id ?? linkedChapter.book_id ?? '');
+          })
+          .filter(Boolean),
+      ),
+    );
+    const chapterIds = Array.from(
+      new Set(
+        entryLinks
+          .map((link) =>
+            String(
+              (link.chapters as Record<string, unknown> | undefined)?.id ?? '',
+            ),
+          )
+          .filter(Boolean),
+      ),
+    );
     return {
       id: String(entry.id),
       word: String(entry.word),
       translation: String(entry.translation ?? 'Translation unavailable'),
       partOfSpeech: String(entry.notes ?? 'word'),
-      context: String(link?.source_context ?? ''),
+      context: String(firstLink?.source_context ?? ''),
       bookId: String(book.id ?? chapter.book_id ?? ''),
       bookTitle: String(book.title ?? 'Unknown book'),
+      bookIds,
+      chapterIds,
       createdAt: String(entry.created_at),
     };
   });
