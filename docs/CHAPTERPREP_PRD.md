@@ -526,6 +526,8 @@ Cover at least:
 - Export vocabulary from a book and from a chapter.
 - The book and chapter export actions use the same export controls and support
   CSV, TXT and Anki `.apkg`; Anki exports never include context examples.
+- Anki exports let the learner choose cards in the word-to-translation direction,
+  the translation-to-word direction, or both directions.
 - The reader text-size controls clearly indicate decrease/increase actions and
   do not include a redundant middle control.
 - The application sidebar keeps Settings and the account control fixed at the
@@ -536,6 +538,9 @@ Cover at least:
 - Chapter numbers are assigned automatically using the lowest available number;
   users do not enter chapter numbers manually.
 - Detect language for pasted/imported text.
+- Show the detected language in chapter forms and warn when the selected
+  language differs; require an explicit confirmation before vocabulary
+  processing continues in that situation.
 - Confirm account deletion with an incorrect and a correct password.
 - Recover from an extraction error.
 
