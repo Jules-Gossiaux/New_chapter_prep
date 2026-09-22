@@ -840,7 +840,7 @@ function Library({
           </div>
           <div className="library-intro-actions">
             <Button variant="outline" onClick={() => go('pdfImport')}>
-              <Icon name="download" /> Import PDF
+              <Icon name="download" /> Import a file
             </Button>
             <Button onClick={() => go('newBook')}>
               <Icon name="plus" /> Add a book
@@ -1097,7 +1097,7 @@ function BookDetail({
               <Icon name="download" /> Export vocabulary
             </Button>
             <button className="delete-action" onClick={() => go('pdfImport')}>
-              Import PDF
+              Import a file
             </button>
             <button
               className="delete-action"

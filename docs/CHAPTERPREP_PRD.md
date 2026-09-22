@@ -534,6 +534,10 @@ Cover at least:
 - The application sidebar keeps Settings and the account control fixed at the
   bottom of the viewport; the account menu opens upward without requiring a
   second scroll.
+- The application sidebar itself remains fixed while the main content scrolls;
+  on mobile it becomes an off-canvas menu.
+- Book import actions use the generic “Import a file” label because both PDF and
+  EPUB files are supported.
 - Deleting a book also removes vocabulary entries that are no longer linked to
   any other book, while preserving shared vocabulary.
 - Chapter numbers are assigned automatically using the lowest available number;
