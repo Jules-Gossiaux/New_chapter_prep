@@ -12,7 +12,7 @@ const json = (body: unknown, status = 200) =>
   });
 
 const MAX_CHAPTER_WORDS = 50_000;
-const MAX_REQUESTED_WORDS = 50;
+const MAX_REQUESTED_WORDS = 100;
 const levelFrequencyCutoffs: Record<string, number> = {
   A1: 300,
   A2: 1500,
