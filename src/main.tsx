@@ -42,6 +42,7 @@ import {
   splitTextIntoPdfChapters,
   type ImportedPdfChapter,
 } from './lib/pdf';
+import { extractTextFromEpub } from './lib/epub';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import {
   filterVocabularyForExport,
@@ -1283,10 +1284,13 @@ function PdfImportSetup({
       return;
     }
     let active = true;
-    setTitle(file.name.replace(/\.pdf$/iu, ''));
+    setTitle(file.name.replace(/\.(?:pdf|epub)$/iu, ''));
     setReading(true);
     setError('');
-    void extractTextFromPdf(file)
+    const extractBookText = file.name.toLowerCase().endsWith('.epub')
+      ? extractTextFromEpub(file)
+      : extractTextFromPdf(file);
+    void extractBookText
       .then((extractedText) => {
         if (active) {
           setText(extractedText);
@@ -1338,8 +1342,8 @@ function PdfImportSetup({
             <span className="kicker">A NEW READING JOURNEY</span>
             <h1>Make room for your book.</h1>
             <p>
-              Import a text-based PDF and we’ll create its chapters for you. You
-              can process each chapter when you’re ready.
+              Import a text-based PDF or EPUB and we’ll create its chapters for
+              you. You can process each chapter when you’re ready.
             </p>
             <div className="new-book-tip">
               <Icon name="sparkle" />
@@ -1355,13 +1359,13 @@ function PdfImportSetup({
               <span className="new-book-step">01 / 01</span>
             </div>
             <label className="pdf-file-input">
-              PDF file
+              Book file
               <input
                 type="file"
-                accept="application/pdf,.pdf"
+                accept="application/pdf,.pdf,application/epub+zip,.epub"
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               />
-              <span>{file?.name ?? 'Choose a PDF file'}</span>
+              <span>{file?.name ?? 'Choose a PDF or EPUB file'}</span>
             </label>
             <label>
               Book title
@@ -1426,7 +1430,7 @@ function PdfImportSetup({
               />
               <small>Chapters end at the nearest paragraph or sentence.</small>
             </label>
-            {reading && <p className="form-status">Reading PDF…</p>}
+            {reading && <p className="form-status">Reading book…</p>}
             {chapters.length > 0 && !reading && (
               <div className="pdf-import-summary">
                 <b>

@@ -2752,6 +2752,7 @@ textarea::placeholder {
 }
 .mini-word small {
   color: #8b9991;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3407,6 +3408,284 @@ textarea::placeholder {
   }
   .export-modal .editor-modal-actions {
     flex-wrap: wrap;
+  }
+}
+
+/* Responsive safety net: content must never create a horizontal page scroll. */
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.app-shell,
+.app-main,
+.content,
+.narrow,
+.reader-page {
+  min-width: 0;
+}
+.vocab-card > *,
+.chapter-card > *,
+.chapter-open > *,
+.reader-layout > *,
+.book-hero > *,
+.new-book-layout > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.vocab-word,
+.vocab-meaning,
+.vocab-word b,
+.vocab-meaning b,
+.vocab-meaning small,
+.chapter-info,
+.chapter-info b,
+.chapter-info small,
+.book-hero-copy,
+.reading-copy {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.vocab-meaning small {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.reading-copy,
+.reading-copy p {
+  overflow-wrap: anywhere;
+}
+.button,
+input,
+textarea,
+select {
+  max-width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .content.narrow {
+    width: min(100%, 920px);
+  }
+  .reader-page {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+  .reading-paper {
+    padding: 42px 48px;
+  }
+  .reader-layout {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 24px;
+  }
+  .vocab-card {
+    grid-template-columns: 40px minmax(130px, 180px) minmax(0, 1fr) 32px;
+  }
+}
+
+@media (max-width: 700px) {
+  .app-main {
+    width: 100%;
+  }
+  .content.narrow,
+  .content {
+    width: 100%;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .page-intro h1,
+  .setup-header h1,
+  .review-header h1,
+  .prepare-top h1,
+  .vocabulary-head h1 {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .new-book-layout {
+    width: 100%;
+  }
+  .new-book-copy h1 {
+    font-size: clamp(34px, 11vw, 48px);
+  }
+  .new-book-card,
+  .setup-card,
+  .reading-paper,
+  .editor-modal {
+    max-width: 100%;
+  }
+  .new-book-card {
+    padding: 20px 16px;
+  }
+  .new-book-actions,
+  .setup-actions,
+  .editor-modal-actions {
+    width: 100%;
+  }
+  .new-book-actions .button,
+  .setup-actions .button,
+  .editor-modal-actions .button {
+    min-width: 0;
+  }
+  .chapter-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    padding: 0;
+  }
+  .chapter-open {
+    grid-column: 1 / -1;
+    width: 100%;
+    padding: 15px 12px;
+    gap: 10px;
+  }
+  .chapter-card > .chapter-delete,
+  .chapter-card > .chapter-process {
+    margin: 0 8px 10px;
+  }
+  .chapter-card > .chapter-delete:last-child {
+    justify-self: end;
+  }
+  .reader-page {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .reader-top {
+    gap: 12px;
+  }
+  .reader-top > .back-link {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .reader-tools {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .reader-tools button {
+    min-width: 32px;
+  }
+  .reading-paper {
+    padding: 24px 18px;
+  }
+  .reading-meta {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .reading-paper > h2 {
+    font-size: clamp(28px, 9vw, 36px);
+  }
+  .word-panel,
+  .reader-help,
+  .my-words-panel {
+    width: 100%;
+  }
+  .vocab-card {
+    grid-template-columns: 34px minmax(0, 1fr) 32px;
+    gap: 8px;
+    padding: 12px;
+  }
+  .vocab-word {
+    grid-column: 2;
+  }
+  .vocab-meaning {
+    grid-column: 2 / -1;
+    padding-top: 2px;
+  }
+  .vocab-more {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+  }
+  .export-note {
+    align-items: flex-start;
+  }
+  .export-note > span {
+    min-width: 0;
+    flex: 1;
+  }
+  .export-note button {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+  .editor-modal-backdrop {
+    padding: 12px;
+  }
+  .editor-modal {
+    width: 100%;
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    padding: 22px 16px;
+  }
+  .export-modal .editor-modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .export-modal .editor-modal-actions .button:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 420px) {
+  .content.narrow,
+  .content {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .app-header {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .mobile-brand .logo {
+    font-size: 14px;
+  }
+  .mobile-brand .logo-mark {
+    width: 22px;
+    height: 22px;
+  }
+  .book-grid {
+    grid-template-columns: 1fr;
+  }
+  .book-hero {
+    grid-template-columns: 1fr;
+  }
+  .large-cover {
+    width: min(100%, 150px);
+    height: 180px;
+  }
+  .book-hero-copy h1 {
+    font-size: 28px;
+  }
+  .chapter-open {
+    align-items: flex-start;
+  }
+  .chapter-index {
+    flex: none;
+  }
+  .chapter-card > .chapter-delete,
+  .chapter-card > .chapter-process {
+    font-size: 11px;
+  }
+  .reader-top {
+    grid-template-columns: 1fr;
+  }
+  .reader-tools {
+    justify-content: flex-start;
+  }
+  .reader-title {
+    grid-row: auto;
+  }
+  .reading-paper {
+    padding: 20px 14px;
+  }
+  .new-book-actions,
+  .setup-actions {
+    flex-direction: column-reverse;
+  }
+  .new-book-actions .button,
+  .setup-actions .button {
+    width: 100%;
   }
 }
 
