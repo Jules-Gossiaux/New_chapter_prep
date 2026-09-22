@@ -64,6 +64,7 @@ function createCollection(
           ord: 0,
           sticky: false,
           rtl: false,
+          media: [],
           font: 'Arial',
           size: 20,
         },
@@ -72,6 +73,7 @@ function createCollection(
           ord: 1,
           sticky: false,
           rtl: false,
+          media: [],
           font: 'Arial',
           size: 20,
         },
@@ -80,10 +82,13 @@ function createCollection(
           ord: 2,
           sticky: false,
           rtl: false,
+          media: [],
           font: 'Arial',
           size: 20,
         },
       ],
+      tags: [],
+      vers: [],
       css: '.card { font-family: arial; font-size: 20px; text-align: center; color: black; background-color: white; }',
       latexPre: '',
       latexPost: '',
@@ -105,7 +110,8 @@ function createCollection(
       newToday: [0, 0],
       revToday: [0, 0],
       lrnToday: [0, 0],
-      timeToday: 0,
+      timeToday: [0, 0],
+      usn: -1,
       mod: now,
     },
   };
@@ -151,7 +157,7 @@ function createCollection(
     JSON.stringify(model),
     JSON.stringify(deck),
     JSON.stringify({}),
-    '',
+    '{}',
   ]);
 
   entries.forEach((entry, index) => {

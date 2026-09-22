@@ -1264,6 +1264,7 @@ function PdfImportSetup({
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [language, setLanguage] = useState('French');
+  const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
   const [level, setLevel] = useState('B1');
   const [targetWords, setTargetWords] = useState(1000);
   const [text, setText] = useState('');
@@ -1278,6 +1279,7 @@ function PdfImportSetup({
   useEffect(() => {
     if (!file) {
       setText('');
+      setDetectedLanguage(null);
       return;
     }
     let active = true;
@@ -1289,12 +1291,14 @@ function PdfImportSetup({
         if (active) {
           setText(extractedText);
           const detectedLanguage = detectBookLanguage(extractedText);
+          setDetectedLanguage(detectedLanguage);
           if (detectedLanguage) setLanguage(detectedLanguage);
         }
       })
       .catch((importError) => {
         if (!active) return;
         setText('');
+        setDetectedLanguage(null);
         setError(
           importError instanceof Error
             ? importError.message
@@ -1387,6 +1391,12 @@ function PdfImportSetup({
                 ))}
               </select>
             </label>
+            {detectedLanguage && language !== detectedLanguage && (
+              <p className="form-error language-detection-warning" role="alert">
+                Attention : la langue choisie ({language}) diffère de la langue
+                détectée ({detectedLanguage}).
+              </p>
+            )}
             <label>
               Your current level
               <select
@@ -1611,6 +1621,7 @@ function ChapterSetup({
   const [level, setLevel] = useState(chapter?.learnerLevel ?? 'B1');
   const [language, setLanguage] = useState(chapter?.language ?? book.language);
   const [languageManuallyChanged, setLanguageManuallyChanged] = useState(false);
+  const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
   const [amount, setAmount] = useState(5);
   const [error, setError] = useState('');
   const [chapterTitle, setChapterTitle] = useState(
@@ -1620,9 +1631,10 @@ function ChapterSetup({
   const wordCount = countWords(text);
   const tooLong = wordCount > MAX_CHAPTER_WORDS;
   useEffect(() => {
-    if (!chapter && !languageManuallyChanged) {
-      const detectedLanguage = detectBookLanguage(text);
-      if (detectedLanguage) setLanguage(detectedLanguage);
+    if (!chapter) {
+      const detected = detectBookLanguage(text);
+      setDetectedLanguage(detected);
+      if (detected && !languageManuallyChanged) setLanguage(detected);
     }
   }, [chapter, languageManuallyChanged, text]);
   const submit = () => {
@@ -1709,6 +1721,12 @@ function ChapterSetup({
               ))}
             </select>
           </label>
+          {detectedLanguage && language !== detectedLanguage && (
+            <p className="form-error language-detection-warning" role="alert">
+              Attention : la langue choisie ({language}) diffère de la langue
+              détectée ({detectedLanguage}).
+            </p>
+          )}
           <label className="select-label">
             Your current level
             <select
@@ -3631,6 +3649,10 @@ function App() {
   ) => {
     if (!selectedBook) return;
     const { title, language, sourceText, learnerLevel: level } = input;
+    const processingParametersChanged =
+      chapter.sourceText !== sourceText ||
+      chapter.language !== language ||
+      chapter.learnerLevel !== level;
     const updatedBackend = isSupabaseConfigured
       ? await updateBackendChapter(chapter.id, {
           number: chapter.number,
@@ -3647,7 +3669,9 @@ function App() {
       words: updatedBackend?.wordCount ?? countWords(sourceText),
       language,
       learnerLevel: level,
-      status: 'Not started' as const,
+      status: processingParametersChanged
+        ? ('Not started' as const)
+        : chapter.status,
     };
     const nextBook = {
       ...selectedBook,
@@ -3659,6 +3683,10 @@ function App() {
     setBooks((old) =>
       old.map((item) => (item.id === nextBook.id ? nextBook : item)),
     );
+    if (processingParametersChanged) {
+      setCandidateItems([]);
+      setSelected(new Set());
+    }
   };
   const removeChapter = async (chapter: DemoBook['chapters'][number]) => {
     if (!selectedBook) throw new Error('SELECT_BOOK_REQUIRED');
