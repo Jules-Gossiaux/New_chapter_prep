@@ -2188,7 +2188,7 @@ function Reader({
   const [translationError, setTranslationError] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
   const [removingWordId, setRemovingWordId] = useState<string | null>(null);
-  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [chapterExportOpen, setChapterExportOpen] = useState(false);
   const [fontSize, setFontSize] = useState(20);
   const active = activeWord
     ? (candidateWordDetails(activeWord, candidateItems) ??
@@ -2243,44 +2243,7 @@ function Reader({
             >
               A+
             </button>
-            <Button
-              className="reader-export-button"
-              onClick={() => setExportMenuOpen((open) => !open)}
-              aria-expanded={exportMenuOpen}
-              aria-label="Export chapter vocabulary"
-            >
-              <Icon name="download" /> Export
-            </Button>
           </div>
-          {exportMenuOpen && (
-            <div className="reader-export-menu">
-              <button
-                onClick={() =>
-                  downloadVocabularyExport(
-                    formatVocabularyExport(chapterExportEntries, {
-                      separator: ',',
-                      includeContext: true,
-                      format: 'csv',
-                    }),
-                    'csv',
-                  )
-                }
-              >
-                Download CSV
-              </button>
-              <button
-                onClick={() =>
-                  void downloadAnkiExport(
-                    chapterExportEntries,
-                    `ChapterPrep – ${book.title} – ${chapter.title}`,
-                    false,
-                  )
-                }
-              >
-                Download Anki (.apkg)
-              </button>
-            </div>
-          )}
         </div>
         <div className="reader-layout">
           <article className="reading-paper">
@@ -2474,8 +2437,22 @@ function Reader({
                 </p>
               )}
             </div>
+            <Button
+              className="chapter-export-button"
+              variant="soft"
+              onClick={() => setChapterExportOpen(true)}
+            >
+              <Icon name="download" /> Export vocabulary
+            </Button>
           </aside>
         </div>
+        {chapterExportOpen && (
+          <ChapterExportModal
+            entries={chapterExportEntries}
+            title={`ChapterPrep – ${book.title} – ${chapter.title}`}
+            onClose={() => setChapterExportOpen(false)}
+          />
+        )}
       </main>
     </AppShell>
   );
@@ -2493,6 +2470,197 @@ function downloadVocabularyExport(
   link.download = `chapterprep-vocabulary.${extension}`;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function ChapterExportModal({
+  entries,
+  title,
+  onClose,
+}: {
+  entries: VocabularyExportEntry[];
+  title: string;
+  onClose: () => void;
+}) {
+  const [exportFormat, setExportFormat] = useState<ExportFileType>('csv');
+  const [separatorChoice, setSeparatorChoice] = useState('comma');
+  const [customSeparator, setCustomSeparator] = useState('|');
+  const [includeContext, setIncludeContext] = useState(true);
+  const [editedExportText, setEditedExportText] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>(
+    'idle',
+  );
+  const separator =
+    separatorChoice === 'comma'
+      ? ','
+      : separatorChoice === 'semicolon'
+        ? ';'
+        : separatorChoice === 'tab'
+          ? '\t'
+          : customSeparator || '|';
+  const textFormat: VocabularyExportFormat =
+    exportFormat === 'apkg' ? 'csv' : exportFormat;
+  const generatedText = formatVocabularyExport(entries, {
+    separator,
+    includeContext,
+    format: textFormat,
+  });
+  const previewText = editedExportText ?? generatedText;
+  useEffect(() => {
+    if (exportFormat === 'apkg') {
+      setIncludeContext(false);
+    }
+  }, [exportFormat]);
+  const copyExport = async () => {
+    try {
+      await navigator.clipboard.writeText(previewText);
+      setCopyStatus('copied');
+    } catch {
+      setCopyStatus('error');
+    }
+  };
+  const resetPreview = () => {
+    setEditedExportText(null);
+    setCopyStatus('idle');
+  };
+  return (
+    <div
+      className="editor-modal-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        className="editor-modal export-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="chapter-export-title"
+      >
+        <div className="editor-modal-head">
+          <div>
+            <span className="kicker">THIS CHAPTER</span>
+            <h2 id="chapter-export-title">Choose your export.</h2>
+          </div>
+          <button
+            className="icon-button"
+            aria-label="Close export dialog"
+            onClick={onClose}
+          >
+            <Icon name="close" />
+          </button>
+        </div>
+        <div className="export-options">
+          <label>
+            <span>File type</span>
+            <select
+              value={exportFormat}
+              onChange={(event) => {
+                setExportFormat(event.target.value as ExportFileType);
+                resetPreview();
+              }}
+            >
+              <option value="csv">CSV</option>
+              <option value="txt">TXT</option>
+              <option value="apkg">Anki (.apkg)</option>
+            </select>
+          </label>
+          <label>
+            <span>Between each field</span>
+            <select
+              value={separatorChoice}
+              onChange={(event) => {
+                setSeparatorChoice(event.target.value);
+                resetPreview();
+              }}
+            >
+              <option value="comma">Comma (,)</option>
+              <option value="semicolon">Semicolon (;)</option>
+              <option value="tab">Tabulation</option>
+              <option value="custom">Custom character</option>
+            </select>
+          </label>
+          {separatorChoice === 'custom' && (
+            <label>
+              <span>Custom separator</span>
+              <input
+                value={customSeparator}
+                maxLength={4}
+                onChange={(event) => {
+                  setCustomSeparator(event.target.value);
+                  resetPreview();
+                }}
+                placeholder="|"
+              />
+            </label>
+          )}
+          {exportFormat !== 'apkg' && (
+            <label className="export-checkbox">
+              <input
+                type="checkbox"
+                checked={includeContext}
+                onChange={(event) => {
+                  setIncludeContext(event.target.checked);
+                  resetPreview();
+                }}
+              />
+              <span>Include examples</span>
+            </label>
+          )}
+        </div>
+        <div className="export-preview-head">
+          <div>
+            <b>Live preview</b>
+            <small>
+              {entries.length} word{entries.length === 1 ? '' : 's'}
+            </small>
+          </div>
+          <code>{separator === '\t' ? 'TAB' : separator}</code>
+        </div>
+        <textarea
+          className="export-preview"
+          aria-label="Editable chapter export preview"
+          value={
+            entries.length ? previewText : 'No vocabulary matches this chapter.'
+          }
+          onChange={(event) => setEditedExportText(event.target.value)}
+          spellCheck={false}
+        />
+        {copyStatus === 'copied' && (
+          <p className="form-success" role="status">
+            Copied to clipboard.
+          </p>
+        )}
+        {copyStatus === 'error' && (
+          <p className="form-error" role="alert">
+            Unable to copy automatically.
+          </p>
+        )}
+        <div className="editor-modal-actions">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="outline" onClick={() => void copyExport()}>
+            Copy
+          </Button>
+          <Button
+            onClick={() => {
+              if (exportFormat === 'apkg') {
+                void downloadAnkiExport(entries, title, false);
+              } else {
+                downloadVocabularyExport(previewText, exportFormat);
+              }
+            }}
+            disabled={!entries.length}
+          >
+            {exportFormat === 'apkg'
+              ? 'Download .apkg'
+              : `Download .${exportFormat}`}{' '}
+            <Icon name="download" />
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function AccountDeletionModal({

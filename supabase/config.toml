@@ -12,3 +12,6 @@ site_url = "http://localhost:5173"
 
 [functions.extract-vocabulary]
 verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true
