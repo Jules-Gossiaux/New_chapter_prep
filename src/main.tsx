@@ -11,7 +11,13 @@ import {
   type View,
 } from './app-model';
 import { countWords, MAX_CHAPTER_WORDS } from './domain';
-import { getCurrentUser, signIn, signOut, signUp } from './lib/auth';
+import {
+  deleteAccount,
+  getCurrentUser,
+  signIn,
+  signOut,
+  signUp,
+} from './lib/auth';
 import {
   createBackendBook,
   createBackendChapter,
@@ -39,8 +45,11 @@ import { isSupabaseConfigured, supabase } from './lib/supabase';
 import {
   filterVocabularyForExport,
   formatVocabularyExport,
+  type VocabularyExportEntry,
   type VocabularyExportFormat,
 } from './export';
+import { createAnkiPackage } from './anki';
+import { detectBookLanguage, supportedBookLanguages } from './lib/language';
 import './styles.css';
 
 type IconName =
@@ -956,6 +965,10 @@ function BookDetail({
   onEditChapter,
   onProcessChapter,
   onAddChapter,
+  saved,
+  vocabularyEntries,
+  onRemoveVocabulary,
+  candidateItems,
 }: {
   book: DemoBook;
   go: (view: View) => void;
@@ -977,8 +990,15 @@ function BookDetail({
   ) => Promise<void>;
   onProcessChapter: (chapter: DemoBook['chapters'][number]) => Promise<void>;
   onAddChapter: () => void;
+  saved: Set<string>;
+  vocabularyEntries: SavedVocabularyItem[];
+  onRemoveVocabulary: (entry: SavedVocabularyItem) => Promise<void>;
+  candidateItems: Candidate[];
 }) {
   const chapters = sortChapterPreviews(book.chapters);
+  const [activeTab, setActiveTab] = useState<'chapters' | 'vocabulary'>(
+    'chapters',
+  );
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editingBook, setEditingBook] = useState(false);
@@ -1089,81 +1109,114 @@ function BookDetail({
             </button>
           </div>
         </section>
-        <div className="chapter-heading">
-          <div>
-            <span className="kicker">YOUR READING PATH</span>
-            <h2>
-              Chapters <span>{book.chapters.length}</span>
-            </h2>
-          </div>
+        <div className="book-tabs" role="tablist" aria-label="Book sections">
+          <button
+            className={activeTab === 'chapters' ? 'active' : ''}
+            onClick={() => setActiveTab('chapters')}
+            role="tab"
+            aria-selected={activeTab === 'chapters'}
+          >
+            Chapters <span>{book.chapters.length}</span>
+          </button>
+          <button
+            className={activeTab === 'vocabulary' ? 'active' : ''}
+            onClick={() => setActiveTab('vocabulary')}
+            role="tab"
+            aria-selected={activeTab === 'vocabulary'}
+          >
+            Vocabulary
+          </button>
         </div>
-        <section className="chapter-list">
-          {chapters.map((chapter) => (
-            <div className="chapter-card" key={chapter.id}>
-              <button
-                className="chapter-open"
-                onClick={() => void openChapter(chapter)}
-              >
-                <span className="chapter-index">
-                  {String(chapter.number).padStart(2, '0')}
-                </span>
-                <span className="chapter-info">
-                  <b>{chapter.title}</b>
-                  <small>
-                    {chapter.words
-                      ? `${chapter.words.toLocaleString()} words`
-                      : 'No text added yet'}
-                    {chapter.words ? ' · ' : ''}
-                    {chapter.status}
-                  </small>
-                </span>
-                <Status status={chapter.status} />
-                <span className="chapter-arrow">
-                  <Icon name="arrow" />
-                </span>
-              </button>
-              <button
-                className="chapter-delete"
-                onClick={() => setEditingChapter(chapter)}
-              >
-                Edit
-              </button>
-              {chapter.status === 'Not started' && (
-                <button
-                  className="chapter-process"
-                  onClick={() => void processChapter(chapter)}
-                  disabled={processingChapter === chapter.id}
-                >
-                  {processingChapter === chapter.id
-                    ? 'Processing…'
-                    : 'Process chapter'}
-                </button>
-              )}
-              <button
-                className="chapter-delete"
-                onClick={() => void removeChapter(chapter)}
-                disabled={deleting === chapter.id}
-                aria-label={`Delete ${chapter.title}`}
-              >
-                {deleting === chapter.id ? '…' : 'Delete'}
-              </button>
+        {activeTab === 'vocabulary' ? (
+          <Vocabulary
+            go={go}
+            saved={saved}
+            entries={vocabularyEntries}
+            onRemove={onRemoveVocabulary}
+            candidateItems={candidateItems}
+            scopeBookId={book.id}
+            scopeTitle={`ChapterPrep – ${book.title}`}
+            embedded
+          />
+        ) : (
+          <>
+            <div className="chapter-heading">
+              <div>
+                <span className="kicker">YOUR READING PATH</span>
+                <h2>
+                  Chapters <span>{book.chapters.length}</span>
+                </h2>
+              </div>
             </div>
-          ))}
-        </section>
-        {error && (
-          <p className="form-error book-error" role="alert">
-            {error}
-          </p>
+            <section className="chapter-list">
+              {chapters.map((chapter) => (
+                <div className="chapter-card" key={chapter.id}>
+                  <button
+                    className="chapter-open"
+                    onClick={() => void openChapter(chapter)}
+                  >
+                    <span className="chapter-index">
+                      {String(chapter.number).padStart(2, '0')}
+                    </span>
+                    <span className="chapter-info">
+                      <b>{chapter.title}</b>
+                      <small>
+                        {chapter.words
+                          ? `${chapter.words.toLocaleString()} words`
+                          : 'No text added yet'}
+                        {chapter.words ? ' · ' : ''}
+                        {chapter.status}
+                      </small>
+                    </span>
+                    <Status status={chapter.status} />
+                    <span className="chapter-arrow">
+                      <Icon name="arrow" />
+                    </span>
+                  </button>
+                  <button
+                    className="chapter-delete"
+                    onClick={() => setEditingChapter(chapter)}
+                  >
+                    Edit
+                  </button>
+                  {chapter.status === 'Not started' && (
+                    <button
+                      className="chapter-process"
+                      onClick={() => void processChapter(chapter)}
+                      disabled={processingChapter === chapter.id}
+                    >
+                      {processingChapter === chapter.id
+                        ? 'Processing…'
+                        : 'Process chapter'}
+                    </button>
+                  )}
+                  <button
+                    className="chapter-delete"
+                    onClick={() => void removeChapter(chapter)}
+                    disabled={deleting === chapter.id}
+                    aria-label={`Delete ${chapter.title}`}
+                  >
+                    {deleting === chapter.id ? '…' : 'Delete'}
+                  </button>
+                </div>
+              ))}
+            </section>
+            {error && (
+              <p className="form-error book-error" role="alert">
+                {error}
+              </p>
+            )}
+            <div className="book-note">
+              <Icon name="sparkle" />
+              <span>
+                <b>Small steps add up.</b>
+                <small>
+                  Preparing just five words can make the next page feel lighter.
+                </small>
+              </span>
+            </div>
+          </>
         )}
-        <div className="book-note">
-          <Icon name="sparkle" />
-          <span>
-            <b>Small steps add up.</b>
-            <small>
-              Preparing just five words can make the next page feel lighter.
-            </small>
-          </span>
-        </div>
         {editingBook && (
           <EditorModal
             book={book}
@@ -1229,7 +1282,11 @@ function PdfImportSetup({
     setError('');
     void extractTextFromPdf(file)
       .then((extractedText) => {
-        if (active) setText(extractedText);
+        if (active) {
+          setText(extractedText);
+          const detectedLanguage = detectBookLanguage(extractedText);
+          if (detectedLanguage) setLanguage(detectedLanguage);
+        }
       })
       .catch((importError) => {
         if (!active) return;
@@ -1321,9 +1378,9 @@ function PdfImportSetup({
                 value={language}
                 onChange={(event) => setLanguage(event.target.value)}
               >
-                <option>English</option>
-                <option>French</option>
-                <option>Italian</option>
+                {supportedBookLanguages.map((item) => (
+                  <option key={item}>{item}</option>
+                ))}
               </select>
             </label>
             <label>
@@ -1549,6 +1606,7 @@ function ChapterSetup({
   const [text, setText] = useState(chapter?.sourceText ?? '');
   const [level, setLevel] = useState(chapter?.learnerLevel ?? 'B1');
   const [language, setLanguage] = useState(chapter?.language ?? book.language);
+  const [languageManuallyChanged, setLanguageManuallyChanged] = useState(false);
   const [amount, setAmount] = useState(5);
   const [error, setError] = useState('');
   const [chapterNumber, setChapterNumber] = useState(
@@ -1560,6 +1618,12 @@ function ChapterSetup({
   const [busy, setBusy] = useState(false);
   const wordCount = countWords(text);
   const tooLong = wordCount > MAX_CHAPTER_WORDS;
+  useEffect(() => {
+    if (!chapter && !languageManuallyChanged) {
+      const detectedLanguage = detectBookLanguage(text);
+      if (detectedLanguage) setLanguage(detectedLanguage);
+    }
+  }, [chapter, languageManuallyChanged, text]);
   const submit = () => {
     setBusy(true);
     setError('');
@@ -1644,10 +1708,16 @@ function ChapterSetup({
             Chapter language
             <select
               value={language}
-              onChange={(event) => setLanguage(event.target.value)}
+              onChange={(event) => {
+                setLanguageManuallyChanged(true);
+                setLanguage(event.target.value);
+              }}
             >
-              <option value="English">English</option>
-              <option value="French">French</option>
+              {supportedBookLanguages.map((item) => (
+                <option value={item} key={item}>
+                  {item}
+                </option>
+              ))}
             </select>
           </label>
           <label className="select-label">
@@ -1982,6 +2052,8 @@ type WordDetails = Pick<
 type SavedVocabularyItem = WordDetails & {
   id: string;
   bookTitle: string;
+  bookIds: string[];
+  chapterIds: string[];
   createdAt: string;
 };
 
@@ -1998,6 +2070,8 @@ function toSavedVocabularyItem(
     confidence: 'Medium',
     bookId: entry.bookId,
     bookTitle: entry.bookTitle,
+    bookIds: entry.bookIds,
+    chapterIds: entry.chapterIds,
     createdAt: entry.createdAt,
   };
 }
@@ -2142,8 +2216,15 @@ function Reader({
         ...getWordDetails(word, candidateItems),
         id: word,
         bookTitle: book.title,
+        bookIds: [book.id],
+        chapterIds: [chapter.id],
         createdAt: '',
       }));
+  const chapterExportEntries = filterVocabularyForExport(
+    exportEntries,
+    book.id,
+    chapter.id,
+  );
   return (
     <AppShell view="reader" go={go} savedCount={saved.size}>
       <main className="reader-page">
@@ -2170,15 +2251,29 @@ function Reader({
             <button
               onClick={() =>
                 downloadVocabularyExport(
-                  formatVocabularyExport(
-                    filterVocabularyForExport(exportEntries, book.id),
-                    { separator: ',', includeContext: true, format: 'csv' },
-                  ),
+                  formatVocabularyExport(chapterExportEntries, {
+                    separator: ',',
+                    includeContext: true,
+                    format: 'csv',
+                  }),
                   'csv',
                 )
               }
+              title="Export this chapter as CSV"
             >
               <Icon name="download" />
+            </button>
+            <button
+              onClick={() =>
+                void downloadAnkiExport(
+                  chapterExportEntries,
+                  `ChapterPrep – ${book.title} – ${chapter.title}`,
+                  true,
+                )
+              }
+              title="Export this chapter for Anki"
+            >
+              Anki
             </button>
           </div>
         </div>
@@ -2328,6 +2423,8 @@ function Reader({
                         ...details,
                         id: details.word,
                         bookTitle: book.title,
+                        bookIds: [book.id],
+                        chapterIds: [chapter.id],
                         createdAt: '',
                       }
                     : null);
@@ -2393,27 +2490,134 @@ function downloadVocabularyExport(
   URL.revokeObjectURL(url);
 }
 
+function AccountDeletionModal({
+  onClose,
+  onDelete,
+}: {
+  onClose: () => void;
+  onDelete: (password: string) => Promise<void>;
+}) {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  return (
+    <div
+      className="editor-modal-backdrop"
+      role="presentation"
+      onMouseDown={onClose}
+    >
+      <section
+        className="editor-modal danger-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-account-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="editor-modal-head">
+          <div>
+            <span className="kicker">DANGER ZONE</span>
+            <h2 id="delete-account-title">Delete your account?</h2>
+          </div>
+          <button className="panel-close" onClick={onClose}>
+            <Icon name="close" />
+          </button>
+        </div>
+        <p>
+          This permanently deletes your library, chapters and vocabulary. Enter
+          your password to confirm.
+        </p>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            setBusy(true);
+            setError('');
+            void onDelete(password)
+              .catch((deleteError) =>
+                setError(
+                  deleteError instanceof Error
+                    ? deleteError.message
+                    : 'The account could not be deleted.',
+                ),
+              )
+              .finally(() => setBusy(false));
+          }}
+        >
+          <label>
+            Password
+            <input
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </label>
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="editor-modal-actions">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={busy}>
+              {busy ? 'Deleting…' : 'Delete permanently'}
+            </Button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+
+async function downloadAnkiExport(
+  entries: VocabularyExportEntry[],
+  deckName: string,
+  includeContext: boolean,
+) {
+  const blob = await createAnkiPackage(entries, {
+    deckName,
+    includeContext,
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${deckName.replace(/[^a-z0-9]+/giu, '-').replace(/^-|-$/gu, '') || 'chapterprep-vocabulary'}.apkg`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+type ExportFileType = VocabularyExportFormat | 'apkg';
+
 function Vocabulary({
   go,
   saved,
   entries,
   onRemove,
   candidateItems,
+  scopeBookId,
+  scopeChapterId,
+  scopeTitle,
+  embedded = false,
 }: {
   go: (view: View) => void;
   saved: Set<string>;
   entries: SavedVocabularyItem[];
   onRemove: (entry: SavedVocabularyItem) => Promise<void>;
   candidateItems: Candidate[];
+  scopeBookId?: string;
+  scopeChapterId?: string;
+  scopeTitle?: string;
+  embedded?: boolean;
 }) {
   const [query, setQuery] = useState('');
-  const [bookFilter, setBookFilter] = useState('all');
+  const [bookFilter, setBookFilter] = useState(scopeBookId ?? 'all');
   const [sort, setSort] = useState('newest');
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
-  const [exportFormat, setExportFormat] =
-    useState<VocabularyExportFormat>('csv');
+  const [exportFormat, setExportFormat] = useState<ExportFileType>('csv');
   const [separatorChoice, setSeparatorChoice] = useState('comma');
   const [customSeparator, setCustomSeparator] = useState('|');
   const [includeContext, setIncludeContext] = useState(true);
@@ -2427,11 +2631,18 @@ function Vocabulary({
         ...getWordDetails(word, candidateItems),
         id: word,
         bookTitle: 'The Little Prince',
+        bookIds: [getWordDetails(word, candidateItems).bookId],
+        chapterIds: [],
         createdAt: '',
       }));
+  const activeBookFilter = scopeBookId ?? bookFilter;
   const filteredWords = savedWords.filter(
     (word) =>
-      (bookFilter === 'all' || word.bookId === bookFilter) &&
+      (!activeBookFilter ||
+        activeBookFilter === 'all' ||
+        word.bookIds.includes(activeBookFilter) ||
+        word.bookId === activeBookFilter) &&
+      (!scopeChapterId || word.chapterIds.includes(scopeChapterId)) &&
       [word.word, word.translation]
         .join(' ')
         .toLowerCase()
@@ -2442,7 +2653,8 @@ function Vocabulary({
   );
   const exportEntries = filterVocabularyForExport(
     savedWords,
-    bookFilter === 'all' ? undefined : bookFilter,
+    activeBookFilter === 'all' ? undefined : activeBookFilter,
+    scopeChapterId,
   );
   const separator =
     separatorChoice === 'comma'
@@ -2452,10 +2664,12 @@ function Vocabulary({
         : separatorChoice === 'tab'
           ? '\t'
           : customSeparator || '|';
+  const textExportFormat: VocabularyExportFormat =
+    exportFormat === 'apkg' ? 'csv' : exportFormat;
   const exportText = formatVocabularyExport(exportEntries, {
     separator,
     includeContext,
-    format: exportFormat,
+    format: textExportFormat,
   });
   const previewText = editedExportText ?? exportText;
   useEffect(() => {
@@ -2481,28 +2695,38 @@ function Vocabulary({
       setCopyStatus('error');
     }
   };
-  return (
-    <AppShell view="vocabulary" go={go} savedCount={saved.size}>
-      <main className="content narrow">
-        <div className="vocabulary-head">
-          <div>
-            <span className="kicker">YOUR PERSONAL LIST</span>
-            <h1>Vocabulary worth keeping.</h1>
-            <p>Words you’ve chosen to carry into your next chapter.</p>
-          </div>
-          <Button onClick={openExport}>
-            <Icon name="download" /> Export
-          </Button>
+  const vocabularyContent = (
+    <main className={`content narrow ${embedded ? 'embedded-vocabulary' : ''}`}>
+      <div className="vocabulary-head">
+        <div>
+          <span className="kicker">
+            {scopeBookId ? 'BOOK VOCABULARY' : 'YOUR PERSONAL LIST'}
+          </span>
+          <h1>
+            {scopeBookId
+              ? 'Vocabulary for this book.'
+              : 'Vocabulary worth keeping.'}
+          </h1>
+          <p>
+            {scopeChapterId
+              ? 'Words prepared for this chapter.'
+              : 'Words you’ve chosen to carry into your next chapter.'}
+          </p>
         </div>
-        <div className="vocabulary-toolbar">
-          <div className="search-box">
-            <Icon name="search" />
-            <input
-              placeholder="Search words or translations"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
+        <Button onClick={openExport}>
+          <Icon name="download" /> Export
+        </Button>
+      </div>
+      <div className="vocabulary-toolbar">
+        <div className="search-box">
+          <Icon name="search" />
+          <input
+            placeholder="Search words or translations"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </div>
+        {!scopeBookId && (
           <label className="filter-button filter-select">
             <select
               value={bookFilter}
@@ -2521,222 +2745,235 @@ function Vocabulary({
             </select>
             <Icon name="chevron" />
           </label>
-          <label className="filter-button filter-select">
-            <select
-              value={sort}
-              onChange={(event) => setSort(event.target.value)}
-            >
-              <option value="newest">Newest first</option>
-              <option value="alphabetical">A–Z</option>
-            </select>
-            <Icon name="chevron" />
-          </label>
-        </div>
-        <section className="vocab-list">
-          {words.length ? (
-            words.map((word) => (
-              <article className="vocab-card" key={word.word}>
-                <span className="vocab-letter">
-                  {word.word[0].toUpperCase()}
-                </span>
-                <span className="vocab-word">
-                  <b>{word.word}</b>
-                  <small>
-                    {word.partOfSpeech} · {word.bookTitle}
-                  </small>
-                </span>
-                <span className="vocab-meaning">
-                  <b>{word.translation}</b>
-                  <small>{word.context}</small>
-                </span>
-                <button
-                  className="vocab-more"
-                  disabled={removingId === word.id}
-                  title={`Remove ${word.word} from vocabulary`}
-                  aria-label={`Remove ${word.word} from vocabulary`}
-                  onClick={() => {
-                    setRemovingId(word.id);
-                    setRemoveError(null);
-                    void onRemove(word)
-                      .catch(() =>
-                        setRemoveError(
-                          'Unable to remove this word. Please retry.',
-                        ),
-                      )
-                      .finally(() => setRemovingId(null));
-                  }}
-                >
-                  <Icon name="trash" />
-                </button>
-              </article>
-            ))
-          ) : (
-            <div className="vocab-empty">
-              <span>
-                <Icon name="bookmark" />
-              </span>
-              <h3>Your list is still quiet.</h3>
-              <p>Save words while reading and they’ll gather here.</p>
-              <Button variant="soft" onClick={() => go('reader')}>
-                Open the reader <Icon name="arrow" />
-              </Button>
-            </div>
-          )}
-        </section>
-        {removeError && (
-          <p className="form-error" role="alert">
-            {removeError}
-          </p>
         )}
-        <div className="export-note">
-          <Icon name="download" />
-          <span>
-            <b>Take your words anywhere.</b>
-            <small>
-              CSV export is ready for Anki or your own study workflow.
-            </small>
-          </span>
-          <button onClick={openExport}>
-            Export <Icon name="arrow" />
-          </button>
-        </div>
-        {exportOpen && (
-          <div
-            className="editor-modal-backdrop"
-            role="presentation"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) setExportOpen(false);
-            }}
+        <label className="filter-button filter-select">
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value)}
           >
-            <section
-              className="editor-modal export-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="export-title"
-            >
-              <div className="editor-modal-head">
-                <div>
-                  <span className="kicker">YOUR VOCABULARY</span>
-                  <h2 id="export-title">Choose your export.</h2>
-                </div>
-                <button
-                  className="icon-button"
-                  aria-label="Close export dialog"
-                  onClick={() => setExportOpen(false)}
-                >
-                  <Icon name="close" />
-                </button>
-              </div>
-              <div className="export-options">
-                <label>
-                  <span>File type</span>
-                  <select
-                    value={exportFormat}
-                    onChange={(event) => {
-                      setExportFormat(
-                        event.target.value as VocabularyExportFormat,
-                      );
-                      setEditedExportText(null);
-                    }}
-                  >
-                    <option value="csv">CSV</option>
-                    <option value="txt">TXT</option>
-                  </select>
-                </label>
-                <label>
-                  <span>Between each field</span>
-                  <select
-                    value={separatorChoice}
-                    onChange={(event) => {
-                      setSeparatorChoice(event.target.value);
-                      setEditedExportText(null);
-                    }}
-                  >
-                    <option value="comma">Comma (,)</option>
-                    <option value="semicolon">Semicolon (;)</option>
-                    <option value="tab">Tabulation</option>
-                    <option value="custom">Custom character</option>
-                  </select>
-                </label>
-                {separatorChoice === 'custom' && (
-                  <label>
-                    <span>Custom separator</span>
-                    <input
-                      value={customSeparator}
-                      maxLength={4}
-                      onChange={(event) => {
-                        setCustomSeparator(event.target.value);
-                        setEditedExportText(null);
-                      }}
-                      placeholder="|"
-                    />
-                  </label>
-                )}
-                <label className="export-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={includeContext}
-                    onChange={(event) => {
-                      setIncludeContext(event.target.checked);
-                      setEditedExportText(null);
-                    }}
-                  />
-                  <span>Include examples</span>
-                </label>
-              </div>
-              <div className="export-preview-head">
-                <div>
-                  <b>Live preview</b>
-                  <small>
-                    {exportEntries.length} word
-                    {exportEntries.length === 1 ? '' : 's'}
-                    {bookFilter !== 'all' ? ' · selected book only' : ''}
-                  </small>
-                </div>
-                <code>{separator === '\t' ? 'TAB' : separator}</code>
-              </div>
-              <textarea
-                className="export-preview"
-                aria-label="Editable export preview"
-                value={
-                  exportEntries.length
-                    ? previewText
-                    : 'No vocabulary matches this book.'
-                }
-                onChange={(event) => setEditedExportText(event.target.value)}
-                spellCheck={false}
-              />
-              {copyStatus === 'copied' && (
-                <p className="form-success" role="status">
-                  Copied to clipboard.
-                </p>
-              )}
-              {copyStatus === 'error' && (
-                <p className="form-error" role="alert">
-                  Unable to copy automatically. You can select the preview
-                  manually.
-                </p>
-              )}
-              <div className="editor-modal-actions">
-                <Button variant="outline" onClick={() => setExportOpen(false)}>
-                  Cancel
-                </Button>
-                <Button variant="outline" onClick={() => void copyExport()}>
-                  Copy
-                </Button>
-                <Button
-                  onClick={() =>
-                    downloadVocabularyExport(previewText, exportFormat)
-                  }
-                  disabled={!exportEntries.length}
-                >
-                  Download .{exportFormat} <Icon name="download" />
-                </Button>
-              </div>
-            </section>
+            <option value="newest">Newest first</option>
+            <option value="alphabetical">A–Z</option>
+          </select>
+          <Icon name="chevron" />
+        </label>
+      </div>
+      <section className="vocab-list">
+        {words.length ? (
+          words.map((word) => (
+            <article className="vocab-card" key={word.word}>
+              <span className="vocab-letter">{word.word[0].toUpperCase()}</span>
+              <span className="vocab-word">
+                <b>{word.word}</b>
+                <small>
+                  {word.partOfSpeech} · {word.bookTitle}
+                </small>
+              </span>
+              <span className="vocab-meaning">
+                <b>{word.translation}</b>
+                <small>{word.context}</small>
+              </span>
+              <button
+                className="vocab-more"
+                disabled={removingId === word.id}
+                title={`Remove ${word.word} from vocabulary`}
+                aria-label={`Remove ${word.word} from vocabulary`}
+                onClick={() => {
+                  setRemovingId(word.id);
+                  setRemoveError(null);
+                  void onRemove(word)
+                    .catch(() =>
+                      setRemoveError(
+                        'Unable to remove this word. Please retry.',
+                      ),
+                    )
+                    .finally(() => setRemovingId(null));
+                }}
+              >
+                <Icon name="trash" />
+              </button>
+            </article>
+          ))
+        ) : (
+          <div className="vocab-empty">
+            <span>
+              <Icon name="bookmark" />
+            </span>
+            <h3>Your list is still quiet.</h3>
+            <p>Save words while reading and they’ll gather here.</p>
+            <Button variant="soft" onClick={() => go('reader')}>
+              Open the reader <Icon name="arrow" />
+            </Button>
           </div>
         )}
-      </main>
+      </section>
+      {removeError && (
+        <p className="form-error" role="alert">
+          {removeError}
+        </p>
+      )}
+      <div className="export-note">
+        <Icon name="download" />
+        <span>
+          <b>Take your words anywhere.</b>
+          <small>Export as CSV, TXT or a ready-to-import Anki package.</small>
+        </span>
+        <button onClick={openExport}>
+          Export <Icon name="arrow" />
+        </button>
+      </div>
+      {exportOpen && (
+        <div
+          className="editor-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setExportOpen(false);
+          }}
+        >
+          <section
+            className="editor-modal export-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="export-title"
+          >
+            <div className="editor-modal-head">
+              <div>
+                <span className="kicker">YOUR VOCABULARY</span>
+                <h2 id="export-title">Choose your export.</h2>
+              </div>
+              <button
+                className="icon-button"
+                aria-label="Close export dialog"
+                onClick={() => setExportOpen(false)}
+              >
+                <Icon name="close" />
+              </button>
+            </div>
+            <div className="export-options">
+              <label>
+                <span>File type</span>
+                <select
+                  value={exportFormat}
+                  onChange={(event) => {
+                    setExportFormat(event.target.value as ExportFileType);
+                    setEditedExportText(null);
+                  }}
+                >
+                  <option value="csv">CSV</option>
+                  <option value="txt">TXT</option>
+                  <option value="apkg">Anki (.apkg)</option>
+                </select>
+              </label>
+              <label>
+                <span>Between each field</span>
+                <select
+                  value={separatorChoice}
+                  onChange={(event) => {
+                    setSeparatorChoice(event.target.value);
+                    setEditedExportText(null);
+                  }}
+                >
+                  <option value="comma">Comma (,)</option>
+                  <option value="semicolon">Semicolon (;)</option>
+                  <option value="tab">Tabulation</option>
+                  <option value="custom">Custom character</option>
+                </select>
+              </label>
+              {separatorChoice === 'custom' && (
+                <label>
+                  <span>Custom separator</span>
+                  <input
+                    value={customSeparator}
+                    maxLength={4}
+                    onChange={(event) => {
+                      setCustomSeparator(event.target.value);
+                      setEditedExportText(null);
+                    }}
+                    placeholder="|"
+                  />
+                </label>
+              )}
+              <label className="export-checkbox">
+                <input
+                  type="checkbox"
+                  checked={includeContext}
+                  onChange={(event) => {
+                    setIncludeContext(event.target.checked);
+                    setEditedExportText(null);
+                  }}
+                />
+                <span>Include examples</span>
+              </label>
+            </div>
+            <div className="export-preview-head">
+              <div>
+                <b>Live preview</b>
+                <small>
+                  {exportEntries.length} word
+                  {exportEntries.length === 1 ? '' : 's'}
+                  {activeBookFilter !== 'all' ? ' · selected scope only' : ''}
+                </small>
+              </div>
+              <code>{separator === '\t' ? 'TAB' : separator}</code>
+            </div>
+            <textarea
+              className="export-preview"
+              aria-label="Editable export preview"
+              value={
+                exportEntries.length
+                  ? previewText
+                  : 'No vocabulary matches this book.'
+              }
+              onChange={(event) => setEditedExportText(event.target.value)}
+              spellCheck={false}
+            />
+            {copyStatus === 'copied' && (
+              <p className="form-success" role="status">
+                Copied to clipboard.
+              </p>
+            )}
+            {copyStatus === 'error' && (
+              <p className="form-error" role="alert">
+                Unable to copy automatically. You can select the preview
+                manually.
+              </p>
+            )}
+            <div className="editor-modal-actions">
+              <Button variant="outline" onClick={() => setExportOpen(false)}>
+                Cancel
+              </Button>
+              <Button variant="outline" onClick={() => void copyExport()}>
+                Copy
+              </Button>
+              <Button
+                onClick={() => {
+                  if (exportFormat === 'apkg') {
+                    void downloadAnkiExport(
+                      exportEntries,
+                      scopeTitle ?? 'ChapterPrep Vocabulary',
+                      includeContext,
+                    );
+                  } else {
+                    downloadVocabularyExport(previewText, exportFormat);
+                  }
+                }}
+                disabled={!exportEntries.length}
+              >
+                {exportFormat === 'apkg'
+                  ? 'Download .apkg'
+                  : `Download .${exportFormat}`}{' '}
+                <Icon name="download" />
+              </Button>
+            </div>
+          </section>
+        </div>
+      )}
+    </main>
+  );
+  return embedded ? (
+    vocabularyContent
+  ) : (
+    <AppShell view="vocabulary" go={go} savedCount={saved.size}>
+      {vocabularyContent}
     </AppShell>
   );
 }
@@ -2757,6 +2994,7 @@ function App() {
     DemoBook['chapters'][number] | null
   >(null);
   const [userLabel, setUserLabel] = useState<string | null>(null);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [candidateItems, setCandidateItems] = useState<Candidate[]>(
     isSupabaseConfigured ? [] : candidates,
   );
@@ -2850,6 +3088,8 @@ function App() {
           ...word,
           id: word.word,
           bookTitle: selectedBook?.title ?? 'Current book',
+          bookIds: selectedBook ? [selectedBook.id] : [word.bookId],
+          chapterIds: selectedChapter ? [selectedChapter.id] : [],
           createdAt: '',
         },
         ...old.filter(
@@ -3385,6 +3625,17 @@ function App() {
     );
     go('landing');
   };
+  const handleDeleteAccount = async (password: string) => {
+    await deleteAccount(password);
+    setDeleteAccountOpen(false);
+    setUserLabel(null);
+    setBooks(isSupabaseConfigured ? [] : demoBooks);
+    setSelectedBook(isSupabaseConfigured ? null : demoBooks[0]);
+    setSelectedChapter(null);
+    setVocabularyEntries([]);
+    setSaved(new Set());
+    go('landing');
+  };
   const page = useMemo(() => {
     if (!authReady) return null;
     if (view === 'landing') return <Landing go={go} />;
@@ -3413,7 +3664,25 @@ function App() {
                 </Button>
               </div>
             </section>
+            <section className="setup-card settings-card danger-zone">
+              <h2>Delete account</h2>
+              <p>
+                Permanently remove your account and all of your reading data.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteAccountOpen(true)}
+              >
+                Delete my account
+              </Button>
+            </section>
           </main>
+          {deleteAccountOpen && (
+            <AccountDeletionModal
+              onClose={() => setDeleteAccountOpen(false)}
+              onDelete={handleDeleteAccount}
+            />
+          )}
         </AppShell>
       );
     if (view === 'library')
@@ -3439,6 +3708,10 @@ function App() {
           onEditBook={editBook}
           onEditChapter={editChapter}
           onProcessChapter={processChapter}
+          saved={saved}
+          vocabularyEntries={vocabularyEntries}
+          onRemoveVocabulary={removeVocabularyWord}
+          candidateItems={candidateItems}
           onAddChapter={() => {
             setSelectedChapter(null);
             setCandidateItems([]);
@@ -3536,6 +3809,10 @@ function App() {
           onEditBook={editBook}
           onEditChapter={editChapter}
           onProcessChapter={processChapter}
+          saved={saved}
+          vocabularyEntries={vocabularyEntries}
+          onRemoveVocabulary={removeVocabularyWord}
+          candidateItems={candidateItems}
           onAddChapter={() => {
             setSelectedChapter(null);
             setCandidateItems([]);
@@ -3572,6 +3849,7 @@ function App() {
     extractionNotice,
     authReady,
     theme,
+    deleteAccountOpen,
     processChapter,
     importPdfBook,
   ]);

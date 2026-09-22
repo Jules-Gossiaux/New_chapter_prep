@@ -1713,6 +1713,49 @@ textarea::placeholder {
 .chapter-heading {
   margin-top: 50px;
 }
+.book-tabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid var(--line);
+  margin-top: 28px;
+}
+.book-tabs button {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  padding: 12px 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+.book-tabs button.active {
+  border-color: var(--green);
+  color: var(--ink);
+}
+.book-tabs button span {
+  color: var(--muted);
+  font-size: 12px;
+  margin-left: 4px;
+}
+.embedded-vocabulary {
+  padding-left: 0;
+  padding-right: 0;
+}
+.danger-zone {
+  margin-top: 18px;
+  border-color: #d28a73;
+}
+.danger-zone h2 {
+  margin-top: 0;
+}
+.danger-zone p {
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.danger-zone .button-outline {
+  color: var(--coral);
+  border-color: #d28a73;
+}
 .chapter-list {
   display: grid;
   gap: 8px;
