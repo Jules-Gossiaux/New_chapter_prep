@@ -3474,6 +3474,123 @@ select {
 }
 
 @media (max-width: 1100px) {
+  /* Tablet and mobile layouts use an off-canvas navigation to preserve room
+     for the actual content. The menu button is the only way to reveal it. */
+  .sidebar {
+    position: fixed;
+    left: -270px;
+    top: 0;
+    bottom: 0;
+    width: 245px;
+    transition: left 0.25s ease;
+    box-shadow: 15px 0 30px #18392b22;
+  }
+  .sidebar.open {
+    left: 0;
+  }
+  .sidebar-close {
+    display: block;
+    position: absolute;
+    right: 14px;
+    top: 22px;
+    border: 0;
+    background: transparent;
+    color: #819189;
+    padding: 8px;
+  }
+  .sidebar-top {
+    position: relative;
+  }
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: #102a2299;
+    border: 0;
+    z-index: 5;
+  }
+  .app-main {
+    width: 100%;
+    margin-left: 0;
+  }
+  .app-header {
+    height: 68px;
+    padding: 0 28px;
+    position: relative;
+    z-index: 2;
+  }
+  .app-menu,
+  .mobile-brand {
+    display: block;
+  }
+  .app-menu {
+    border: 0;
+    background: transparent;
+    color: var(--green);
+    padding: 8px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .mobile-brand .logo {
+    font-size: 17px;
+  }
+  .mobile-brand .logo-mark {
+    width: 26px;
+    height: 26px;
+    font-size: 18px;
+  }
+  .header-status {
+    display: none;
+  }
+  .content {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+  .page-intro h1,
+  .setup-header h1,
+  .review-header h1,
+  .prepare-top h1,
+  .vocabulary-head h1 {
+    font-size: clamp(36px, 5vw, 48px);
+    line-height: 1.05;
+  }
+  .search-box input,
+  .filter-select select {
+    font-size: 14px;
+  }
+  .button {
+    min-height: 44px;
+    font-size: 14px;
+  }
+  .vocab-card {
+    padding: 18px;
+  }
+  .vocab-word b,
+  .vocab-meaning b {
+    font-size: 17px;
+  }
+  .vocab-word small,
+  .vocab-meaning small {
+    font-size: 12px;
+  }
+  .chapter-info b {
+    font-size: 15px;
+  }
+  .chapter-info small {
+    font-size: 12px;
+  }
+  .reader-tools button {
+    min-width: 40px;
+    min-height: 40px;
+    font-size: 14px;
+  }
+  .mini-word {
+    font-size: 13px;
+    padding: 12px 10px;
+  }
+  .mini-word-remove {
+    min-width: 40px;
+    min-height: 40px;
+  }
   .content.narrow {
     width: min(100%, 920px);
   }
@@ -3494,6 +3611,11 @@ select {
 }
 
 @media (max-width: 700px) {
+  .app-header {
+    height: 62px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
   .app-main {
     width: 100%;
   }
@@ -3513,6 +3635,9 @@ select {
   }
   .new-book-layout {
     width: 100%;
+  }
+  .book-grid {
+    grid-template-columns: 1fr;
   }
   .new-book-copy h1 {
     font-size: clamp(34px, 11vw, 48px);
