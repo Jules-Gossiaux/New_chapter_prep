@@ -6,7 +6,11 @@ import type { VocabularyExportEntry } from './export';
 export type AnkiExportOptions = {
   deckName: string;
   includeContext: boolean;
+  direction: AnkiDirection;
 };
+
+export type AnkiDirection =
+  'word-to-translation' | 'translation-to-word' | 'both';
 
 function escapeHtml(value: string) {
   return value
@@ -46,17 +50,38 @@ function createCollection(
       sortf: 0,
       did: null,
       tmpls: [
-        {
-          name: 'Card 1',
-          ord: 0,
-          qfmt: '{{Word}}',
-          afmt: '{{FrontSide}}<hr id="answer">{{Translation}}{{#Example}}<br><br><i>{{Example}}</i>{{/Example}}',
-          bqfmt: '',
-          bafmt: '',
-          did: null,
-          bfont: 'Arial',
-          bsize: 20,
-        },
+        ...(options.direction === 'translation-to-word' ||
+        options.direction === 'both'
+          ? [
+              {
+                name: 'Translation → word',
+                ord: 0,
+                qfmt: '{{Translation}}',
+                afmt: '{{FrontSide}}<hr id="answer">{{Word}}',
+                bqfmt: '',
+                bafmt: '',
+                did: null,
+                bfont: 'Arial',
+                bsize: 20,
+              },
+            ]
+          : []),
+        ...(options.direction === 'word-to-translation' ||
+        options.direction === 'both'
+          ? [
+              {
+                name: 'Word → translation',
+                ord: options.direction === 'both' ? 1 : 0,
+                qfmt: '{{Word}}',
+                afmt: '{{FrontSide}}<hr id="answer">{{Translation}}{{#Example}}<br><br><i>{{Example}}</i>{{/Example}}',
+                bqfmt: '',
+                bafmt: '',
+                did: null,
+                bfont: 'Arial',
+                bsize: 20,
+              },
+            ]
+          : []),
       ],
       flds: [
         {
@@ -93,7 +118,15 @@ function createCollection(
       latexPre: '',
       latexPost: '',
       latexsvg: false,
-      req: [[0, 'all', [0, 1]]],
+      req:
+        options.direction === 'both'
+          ? [
+              [0, 'all', [1]],
+              [1, 'all', [0]],
+            ]
+          : options.direction === 'translation-to-word'
+            ? [[0, 'all', [1]]]
+            : [[0, 'all', [0]]],
     },
   };
   const deck = {
@@ -160,6 +193,7 @@ function createCollection(
     '{}',
   ]);
 
+  let cardIndex = 0;
   entries.forEach((entry, index) => {
     const noteId = now * 100000 + index + 1;
     const cardId = noteId + 50000000;
@@ -177,29 +211,37 @@ function createCollection(
       0,
       '',
     ]);
-    db.run(
-      'INSERT INTO cards VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [
-        cardId,
-        noteId,
-        deckId,
-        0,
-        now,
-        -1,
-        0,
-        0,
-        index + 1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        '',
-      ],
-    );
+    const ordinals =
+      options.direction === 'both'
+        ? [0, 1]
+        : [options.direction === 'translation-to-word' ? 0 : 0];
+    ordinals.forEach((ord) => {
+      const currentCardId = cardId + cardIndex;
+      db.run(
+        'INSERT INTO cards VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          currentCardId,
+          noteId,
+          deckId,
+          ord,
+          now,
+          -1,
+          0,
+          0,
+          cardIndex + 1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          '',
+        ],
+      );
+      cardIndex += 1;
+    });
   });
   return db;
 }

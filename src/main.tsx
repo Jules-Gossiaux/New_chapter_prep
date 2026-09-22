@@ -49,7 +49,7 @@ import {
   type VocabularyExportEntry,
   type VocabularyExportFormat,
 } from './export';
-import { createAnkiPackage } from './anki';
+import { createAnkiPackage, type AnkiDirection } from './anki';
 import { detectBookLanguage, supportedBookLanguages } from './lib/language';
 import './styles.css';
 
@@ -1489,6 +1489,7 @@ function EditorModal({
   );
   const [sourceText, setSourceText] = useState(chapter?.sourceText ?? '');
   const isChapter = Boolean(chapter);
+  const detectedLanguage = isChapter ? detectBookLanguage(sourceText) : null;
   return (
     <div
       className="editor-modal-backdrop"
@@ -1535,10 +1536,17 @@ function EditorModal({
             value={language}
             onChange={(event) => setLanguage(event.target.value)}
           >
-            <option>English</option>
-            <option>French</option>
+            {supportedBookLanguages.map((item) => (
+              <option key={item}>{item}</option>
+            ))}
           </select>
         </label>
+        {isChapter && detectedLanguage && language !== detectedLanguage && (
+          <p className="form-error language-detection-warning" role="alert">
+            Attention : la langue choisie ({language}) diffère de la langue
+            détectée ({detectedLanguage}).
+          </p>
+        )}
         {isChapter && (
           <>
             <label>
@@ -1630,14 +1638,23 @@ function ChapterSetup({
   const [busy, setBusy] = useState(false);
   const wordCount = countWords(text);
   const tooLong = wordCount > MAX_CHAPTER_WORDS;
+  const languageMismatch = Boolean(
+    detectedLanguage && language !== detectedLanguage,
+  );
   useEffect(() => {
-    if (!chapter) {
-      const detected = detectBookLanguage(text);
-      setDetectedLanguage(detected);
-      if (detected && !languageManuallyChanged) setLanguage(detected);
-    }
+    const detected = detectBookLanguage(text);
+    setDetectedLanguage(detected);
+    if (!chapter && detected && !languageManuallyChanged) setLanguage(detected);
   }, [chapter, languageManuallyChanged, text]);
   const submit = () => {
+    if (
+      languageMismatch &&
+      !window.confirm(
+        `Attention : le texte semble être en ${detectedLanguage}, mais la langue sélectionnée est ${language}. La qualité du vocabulaire et des traductions ne peut pas être garantie. Voulez-vous continuer ?`,
+      )
+    ) {
+      return;
+    }
     setBusy(true);
     setError('');
     const action =
@@ -2500,6 +2517,7 @@ function ChapterExportModal({
   onClose: () => void;
 }) {
   const [exportFormat, setExportFormat] = useState<ExportFileType>('csv');
+  const [ankiDirection, setAnkiDirection] = useState<AnkiDirection>('both');
   const [separatorChoice, setSeparatorChoice] = useState('comma');
   const [customSeparator, setCustomSeparator] = useState('|');
   const [includeContext, setIncludeContext] = useState(true);
@@ -2582,6 +2600,22 @@ function ChapterExportModal({
               <option value="apkg">Anki (.apkg)</option>
             </select>
           </label>
+          {exportFormat === 'apkg' && (
+            <label>
+              <span>Anki cards</span>
+              <select
+                value={ankiDirection}
+                onChange={(event) => {
+                  setAnkiDirection(event.target.value as AnkiDirection);
+                  resetPreview();
+                }}
+              >
+                <option value="both">Both directions</option>
+                <option value="word-to-translation">Word → translation</option>
+                <option value="translation-to-word">Translation → word</option>
+              </select>
+            </label>
+          )}
           <label>
             <span>Between each field</span>
             <select
@@ -2663,7 +2697,7 @@ function ChapterExportModal({
           <Button
             onClick={() => {
               if (exportFormat === 'apkg') {
-                void downloadAnkiExport(entries, title, false);
+                void downloadAnkiExport(entries, title, false, ankiDirection);
               } else {
                 downloadVocabularyExport(previewText, exportFormat);
               }
@@ -2766,10 +2800,12 @@ async function downloadAnkiExport(
   entries: VocabularyExportEntry[],
   deckName: string,
   includeContext: boolean,
+  direction: AnkiDirection,
 ) {
   const blob = await createAnkiPackage(entries, {
     deckName,
     includeContext,
+    direction,
   });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -2809,6 +2845,7 @@ function Vocabulary({
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFileType>('csv');
+  const [ankiDirection, setAnkiDirection] = useState<AnkiDirection>('both');
   const [separatorChoice, setSeparatorChoice] = useState('comma');
   const [customSeparator, setCustomSeparator] = useState('|');
   const [includeContext, setIncludeContext] = useState(true);
@@ -3057,6 +3094,26 @@ function Vocabulary({
                   <option value="apkg">Anki (.apkg)</option>
                 </select>
               </label>
+              {exportFormat === 'apkg' && (
+                <label>
+                  <span>Anki cards</span>
+                  <select
+                    value={ankiDirection}
+                    onChange={(event) => {
+                      setAnkiDirection(event.target.value as AnkiDirection);
+                      setEditedExportText(null);
+                    }}
+                  >
+                    <option value="both">Both directions</option>
+                    <option value="word-to-translation">
+                      Word → translation
+                    </option>
+                    <option value="translation-to-word">
+                      Translation → word
+                    </option>
+                  </select>
+                </label>
+              )}
               <label>
                 <span>Between each field</span>
                 <select
@@ -3147,6 +3204,7 @@ function Vocabulary({
                       exportEntries,
                       scopeTitle ?? 'ChapterPrep Vocabulary',
                       includeContext,
+                      ankiDirection,
                     );
                   } else {
                     downloadVocabularyExport(previewText, exportFormat);
