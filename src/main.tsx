@@ -2313,6 +2313,10 @@ function Reader({
                     (word) => {
                       setActiveWord(word);
                       setTranslationError(null);
+                      const isCompactReader =
+                        window.matchMedia?.('(max-width: 1100px)').matches ??
+                        window.innerWidth <= 1100;
+                      if (isCompactReader) setTranslationModalOpen(true);
                       if (
                         candidateWordDetails(word, candidateItems) ||
                         lookups[word.toLowerCase()] ||
@@ -2339,12 +2343,6 @@ function Reader({
                             ...old,
                             [word.toLowerCase()]: details,
                           }));
-                          if (
-                            window.matchMedia?.('(max-width: 1100px)')
-                              .matches
-                          ) {
-                            setTranslationModalOpen(true);
-                          }
                         })
                         .catch((error: unknown) => {
                           setTranslationError(
@@ -2513,7 +2511,7 @@ function Reader({
             onClose={() => setChapterExportOpen(false)}
           />
         )}
-        {translationModalOpen && active && (
+        {translationModalOpen && activeWord && (
           <div
             className="editor-modal-backdrop translation-modal-backdrop"
             role="presentation"
@@ -2532,7 +2530,9 @@ function Reader({
               <div className="editor-modal-head">
                 <div>
                   <span className="kicker">TRANSLATION</span>
-                  <h2 id="translation-modal-title">{active.word}</h2>
+                  <h2 id="translation-modal-title">
+                    {active?.word ?? activeWord}
+                  </h2>
                 </div>
                 <button
                   className="icon-button"
@@ -2542,42 +2542,52 @@ function Reader({
                   <Icon name="close" />
                 </button>
               </div>
-              <p className="translation-modal-result">{active.translation}</p>
-              <span className="part-pill">{active.partOfSpeech}</span>
-              <div className="panel-context">
-                <span>FROM THIS CHAPTER</span>
-                <p>{active.context}</p>
-              </div>
-              <div className="editor-modal-actions">
-                <Button
-                  variant="outline"
-                  onClick={() => setTranslationModalOpen(false)}
-                >
-                  Close
-                </Button>
-                <Button
-                  variant={saved.has(active.word) ? 'soft' : 'primary'}
-                  onClick={() => {
-                    void onSaveWord(active)
-                      .then(() => setTranslationModalOpen(false))
-                      .catch(() =>
-                        setTranslationError(
-                          'Unable to save this word. Please retry.',
-                        ),
-                      );
-                  }}
-                >
-                  {saved.has(active.word) ? (
-                    <>
-                      <Icon name="check" /> Saved to vocabulary
-                    </>
-                  ) : (
-                    <>
-                      <Icon name="bookmark" /> Add to my words
-                    </>
-                  )}
-                </Button>
-              </div>
+              {active ? (
+                <>
+                  <p className="translation-modal-result">
+                    {active.translation}
+                  </p>
+                  <span className="part-pill">{active.partOfSpeech}</span>
+                  <div className="panel-context">
+                    <span>FROM THIS CHAPTER</span>
+                    <p>{active.context}</p>
+                  </div>
+                  <div className="editor-modal-actions">
+                    <Button
+                      variant="outline"
+                      onClick={() => setTranslationModalOpen(false)}
+                    >
+                      Close
+                    </Button>
+                    <Button
+                      variant={saved.has(active.word) ? 'soft' : 'primary'}
+                      onClick={() => {
+                        void onSaveWord(active)
+                          .then(() => setTranslationModalOpen(false))
+                          .catch(() =>
+                            setTranslationError(
+                              'Unable to save this word. Please retry.',
+                            ),
+                          );
+                      }}
+                    >
+                      {saved.has(active.word) ? (
+                        <>
+                          <Icon name="check" /> Saved to vocabulary
+                        </>
+                      ) : (
+                        <>
+                          <Icon name="bookmark" /> Add to my words
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <p className="translation-modal-loading" aria-live="polite">
+                  {translationError ?? 'Translating…'}
+                </p>
+              )}
             </section>
           </div>
         )}

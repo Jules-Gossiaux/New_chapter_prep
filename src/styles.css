@@ -2324,6 +2324,11 @@ textarea::placeholder {
   font-size: 30px;
   margin: -3px 0 0;
 }
+.translation-modal-loading {
+  color: var(--muted);
+  font-size: 15px;
+  margin: 0;
+}
 .translation-modal .panel-context {
   margin-top: 8px;
 }
