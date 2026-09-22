@@ -46,6 +46,13 @@ export function sortChapterPreviews(chapters: ChapterPreview[]) {
   return [...chapters].sort((a, b) => a.number - b.number);
 }
 
+export function nextAvailableChapterNumber(chapters: ChapterPreview[]) {
+  const usedNumbers = new Set(chapters.map((chapter) => chapter.number));
+  let number = 1;
+  while (usedNumbers.has(number)) number += 1;
+  return number;
+}
+
 export function displayNameFromEmail(email: string | null | undefined) {
   const firstWord = email
     ?.split('@')[0]

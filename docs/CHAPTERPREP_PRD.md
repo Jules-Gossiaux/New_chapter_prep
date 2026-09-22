@@ -524,6 +524,17 @@ Cover at least:
 - Edit/remove a saved word.
 - Export vocabulary.
 - Export vocabulary from a book and from a chapter.
+- The book and chapter export actions use the same export controls and support
+  CSV, TXT and Anki `.apkg`; Anki exports never include context examples.
+- The reader text-size controls clearly indicate decrease/increase actions and
+  do not include a redundant middle control.
+- The application sidebar keeps Settings and the account control fixed at the
+  bottom of the viewport; the account menu opens upward without requiring a
+  second scroll.
+- Deleting a book also removes vocabulary entries that are no longer linked to
+  any other book, while preserving shared vocabulary.
+- Chapter numbers are assigned automatically using the lowest available number;
+  users do not enter chapter numbers manually.
 - Detect language for pasted/imported text.
 - Confirm account deletion with an incorrect and a correct password.
 - Recover from an extraction error.

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { displayNameFromEmail, sortChapterPreviews } from './app-model';
+import {
+  displayNameFromEmail,
+  nextAvailableChapterNumber,
+  sortChapterPreviews,
+} from './app-model';
 
 describe('sortChapterPreviews', () => {
   it('orders chapters by their numeric chapter number without mutating input', () => {
@@ -39,5 +43,16 @@ describe('displayNameFromEmail', () => {
     expect(displayNameFromEmail('aeroxe.gossiaux@gmail.com')).toBe('Aeroxe');
     expect(displayNameFromEmail('reader@example.com')).toBe('Reader');
     expect(displayNameFromEmail(null)).toBeNull();
+  });
+});
+
+describe('nextAvailableChapterNumber', () => {
+  it('returns the lowest unused positive chapter number', () => {
+    expect(
+      nextAvailableChapterNumber([
+        { id: '1', number: 1, title: 'One', words: 1, status: 'Ready' },
+        { id: '3', number: 3, title: 'Three', words: 1, status: 'Ready' },
+      ]),
+    ).toBe(2);
   });
 });

@@ -192,6 +192,23 @@ export async function updateBackendBook(
 
 export async function deleteBackendBook(bookId: string) {
   const { client } = await requireUser();
+  const { data: chapters, error: chaptersError } = await client
+    .from('chapters')
+    .select('id')
+    .eq('book_id', bookId);
+  if (chaptersError) throw chaptersError;
+  const chapterIds = (chapters ?? []).map((chapter) => String(chapter.id));
+  let vocabularyEntryIds: string[] = [];
+  if (chapterIds.length) {
+    const { data: links, error: linksError } = await client
+      .from('chapter_vocabulary')
+      .select('vocabulary_entry_id')
+      .in('chapter_id', chapterIds);
+    if (linksError) throw linksError;
+    vocabularyEntryIds = Array.from(
+      new Set((links ?? []).map((link) => String(link.vocabulary_entry_id))),
+    );
+  }
   const { data, error } = await client
     .from('books')
     .delete()
@@ -200,6 +217,25 @@ export async function deleteBackendBook(bookId: string) {
     .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error('BOOK_NOT_FOUND_OR_FORBIDDEN');
+
+  if (vocabularyEntryIds.length) {
+    const { data: remainingLinks, error: remainingLinksError } = await client
+      .from('chapter_vocabulary')
+      .select('vocabulary_entry_id')
+      .in('vocabulary_entry_id', vocabularyEntryIds);
+    if (remainingLinksError) throw remainingLinksError;
+    const linkedIds = new Set(
+      (remainingLinks ?? []).map((link) => String(link.vocabulary_entry_id)),
+    );
+    const orphanedIds = vocabularyEntryIds.filter((id) => !linkedIds.has(id));
+    if (orphanedIds.length) {
+      const { error: vocabularyError } = await client
+        .from('vocabulary_entries')
+        .delete()
+        .in('id', orphanedIds);
+      if (vocabularyError) throw vocabularyError;
+    }
+  }
 }
 
 export async function listBackendChapters(bookId: string) {

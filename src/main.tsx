@@ -4,6 +4,7 @@ import {
   candidates,
   demoBooks,
   displayNameFromEmail,
+  nextAvailableChapterNumber,
   readerParagraphs,
   sortChapterPreviews,
   type Candidate,
@@ -1091,6 +1092,9 @@ function BookDetail({
             <Button onClick={onAddChapter}>
               <Icon name="plus" /> Add chapter
             </Button>
+            <Button variant="soft" onClick={() => setActiveTab('vocabulary')}>
+              <Icon name="download" /> Export vocabulary
+            </Button>
             <button className="delete-action" onClick={() => go('pdfImport')}>
               Import PDF
             </button>
@@ -1609,9 +1613,6 @@ function ChapterSetup({
   const [languageManuallyChanged, setLanguageManuallyChanged] = useState(false);
   const [amount, setAmount] = useState(5);
   const [error, setError] = useState('');
-  const [chapterNumber, setChapterNumber] = useState(
-    chapter?.number ?? nextChapterNumber,
-  );
   const [chapterTitle, setChapterTitle] = useState(
     chapter?.title ?? `Chapter ${nextChapterNumber}`,
   );
@@ -1636,7 +1637,7 @@ function ChapterSetup({
             learnerLevel: level,
           })
         : onCreateChapter({
-            number: chapterNumber,
+            number: nextChapterNumber,
             title: chapterTitle,
             sourceText: text,
             targetLanguage: language,
@@ -1683,18 +1684,6 @@ function ChapterSetup({
         </div>
         <section className="setup-card">
           <div className="setup-fields">
-            <label>
-              Chapter number
-              <input
-                type="number"
-                value={chapterNumber}
-                readOnly={Boolean(chapter)}
-                onChange={(event) =>
-                  setChapterNumber(Number(event.target.value))
-                }
-                min="1"
-              />
-            </label>
             <label>
               Chapter title
               <input
@@ -2199,6 +2188,7 @@ function Reader({
   const [translationError, setTranslationError] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
   const [removingWordId, setRemovingWordId] = useState<string | null>(null);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [fontSize, setFontSize] = useState(20);
   const active = activeWord
     ? (candidateWordDetails(activeWord, candidateItems) ??
@@ -2239,43 +2229,58 @@ function Reader({
             <h1>{chapter.title}</h1>
           </div>
           <div className="reader-tools">
-            <button onClick={() => setFontSize(Math.max(16, fontSize - 1))}>
+            <button
+              onClick={() => setFontSize(Math.max(16, fontSize - 1))}
+              aria-label="Decrease text size"
+              title="Decrease text size"
+            >
               A−
             </button>
-            <button onClick={() => setFontSize(Math.min(26, fontSize + 1))}>
+            <button
+              onClick={() => setFontSize(Math.min(26, fontSize + 1))}
+              aria-label="Increase text size"
+              title="Increase text size"
+            >
               A+
             </button>
-            <button onClick={() => go('vocabulary')}>
-              <Icon name="bookmark" />
-            </button>
-            <button
-              onClick={() =>
-                downloadVocabularyExport(
-                  formatVocabularyExport(chapterExportEntries, {
-                    separator: ',',
-                    includeContext: true,
-                    format: 'csv',
-                  }),
-                  'csv',
-                )
-              }
-              title="Export this chapter as CSV"
+            <Button
+              className="reader-export-button"
+              onClick={() => setExportMenuOpen((open) => !open)}
+              aria-expanded={exportMenuOpen}
+              aria-label="Export chapter vocabulary"
             >
-              <Icon name="download" />
-            </button>
-            <button
-              onClick={() =>
-                void downloadAnkiExport(
-                  chapterExportEntries,
-                  `ChapterPrep – ${book.title} – ${chapter.title}`,
-                  true,
-                )
-              }
-              title="Export this chapter for Anki"
-            >
-              Anki
-            </button>
+              <Icon name="download" /> Export
+            </Button>
           </div>
+          {exportMenuOpen && (
+            <div className="reader-export-menu">
+              <button
+                onClick={() =>
+                  downloadVocabularyExport(
+                    formatVocabularyExport(chapterExportEntries, {
+                      separator: ',',
+                      includeContext: true,
+                      format: 'csv',
+                    }),
+                    'csv',
+                  )
+                }
+              >
+                Download CSV
+              </button>
+              <button
+                onClick={() =>
+                  void downloadAnkiExport(
+                    chapterExportEntries,
+                    `ChapterPrep – ${book.title} – ${chapter.title}`,
+                    false,
+                  )
+                }
+              >
+                Download Anki (.apkg)
+              </button>
+            </div>
+          )}
         </div>
         <div className="reader-layout">
           <article className="reading-paper">
@@ -2682,6 +2687,9 @@ function Vocabulary({
     includeContext,
     separatorChoice,
   ]);
+  useEffect(() => {
+    if (exportFormat === 'apkg') setIncludeContext(false);
+  }, [exportFormat]);
   const openExport = () => {
     setCopyStatus('idle');
     setEditedExportText(null);
@@ -2892,17 +2900,19 @@ function Vocabulary({
                   />
                 </label>
               )}
-              <label className="export-checkbox">
-                <input
-                  type="checkbox"
-                  checked={includeContext}
-                  onChange={(event) => {
-                    setIncludeContext(event.target.checked);
-                    setEditedExportText(null);
-                  }}
-                />
-                <span>Include examples</span>
-              </label>
+              {exportFormat !== 'apkg' && (
+                <label className="export-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={includeContext}
+                    onChange={(event) => {
+                      setIncludeContext(event.target.checked);
+                      setEditedExportText(null);
+                    }}
+                  />
+                  <span>Include examples</span>
+                </label>
+              )}
             </div>
             <div className="export-preview-head">
               <div>
@@ -3345,10 +3355,9 @@ function App() {
           chapters: [],
         };
     let nextBook = book;
-    let nextNumber =
-      Math.max(0, ...book.chapters.map((chapter) => chapter.number)) + 1;
 
     for (const importedChapter of input.chapters) {
+      const nextNumber = nextAvailableChapterNumber(nextBook.chapters);
       const chapter = isSupabaseConfigured
         ? await createBackendChapter({
             bookId: nextBook.id,
@@ -3387,7 +3396,6 @@ function App() {
         ...nextBook,
         chapters: [...nextBook.chapters, createdChapter],
       };
-      nextNumber += 1;
     }
 
     setSelectedBook(nextBook);
@@ -3399,6 +3407,24 @@ function App() {
   };
   const removeBook = async (book: DemoBook) => {
     if (isSupabaseConfigured) await deleteBackendBook(book.id);
+    setVocabularyEntries((old) =>
+      old.filter(
+        (entry) => !entry.bookIds.includes(book.id) && entry.bookId !== book.id,
+      ),
+    );
+    setSaved(
+      (old) =>
+        new Set(
+          [...old].filter(
+            (word) =>
+              !vocabularyEntries.some(
+                (entry) =>
+                  entry.word.toLocaleLowerCase() === word.toLocaleLowerCase() &&
+                  (entry.bookIds.includes(book.id) || entry.bookId === book.id),
+              ),
+          ),
+        ),
+    );
     setBooks((old) => old.filter((item) => item.id !== book.id));
     setSelectedBook(null);
     setSelectedChapter(null);
@@ -3736,12 +3762,7 @@ function App() {
           onCreateChapter={createChapter}
           chapter={selectedChapter ?? undefined}
           onProcess={processChapterWithSettings}
-          nextChapterNumber={
-            Math.max(
-              0,
-              ...selectedBook.chapters.map((chapter) => chapter.number),
-            ) + 1
-          }
+          nextChapterNumber={nextAvailableChapterNumber(selectedBook.chapters)}
         />
       ) : (
         <Library
