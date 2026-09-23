@@ -1524,6 +1524,10 @@ textarea::placeholder {
 .cover-stranger {
   background: linear-gradient(145deg, #cdb797, #9e7957);
 }
+.cover-custom {
+  background: linear-gradient(145deg, #dcebe1, #b9d5c4);
+  color: #173b2d;
+}
 .book-card-info {
   display: flex;
   justify-content: space-between;
@@ -3272,8 +3276,24 @@ textarea::placeholder {
     grid-column: 1/-1;
     width: 100%;
   }
+  .book-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-items: initial;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px 14px;
+  }
   .book-actions .button {
-    width: 100%;
+    width: auto;
+    min-width: 0;
+    flex: 1 1 calc(50% - 7px);
+    font-size: 13px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .book-actions .delete-action {
+    flex: 0 0 auto;
   }
   .chapter-heading {
     margin-top: 35px;
@@ -4030,6 +4050,9 @@ html[data-theme='dark'] .book-cover,
 html[data-theme='dark'] .large-cover {
   background: #243a2f;
   border-color: #3f5e4d;
+}
+html[data-theme='dark'] .cover-custom {
+  color: #fff;
 }
 
 html[data-theme='dark'] .book-note,
