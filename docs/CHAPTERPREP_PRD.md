@@ -536,8 +536,8 @@ Cover at least:
   second scroll.
 - The application sidebar itself remains fixed while the main content scrolls;
   on mobile it becomes an off-canvas menu.
-- Book import actions use the generic “Import a file” label because both PDF and
-  EPUB files are supported.
+- Book import actions explicitly mention “Import PDF / EPUB” so the supported
+  file types are clear on mobile and desktop.
 - Deleting a book also removes vocabulary entries that are no longer linked to
   any other book, while preserving shared vocabulary.
 - Chapter numbers are assigned automatically using the lowest available number;
