@@ -4,11 +4,12 @@ project_id = "chapterprep"
 enabled = true
 
 [db]
-major_version = 15
+major_version = 17
 
 [auth]
 enabled = true
-site_url = "http://localhost:5173"
+site_url = "https://newchapterprep.vercel.app"
+additional_redirect_urls = ["http://localhost:5173", "http://localhost:5174", "https://127.0.0.1:3000"]
 
 [functions.extract-vocabulary]
 verify_jwt = true

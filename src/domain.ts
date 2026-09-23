@@ -27,6 +27,7 @@ export const emptyStore: Store = { books: [], chapters: [] };
  * without imposing the former AI-context limit on readers.
  */
 export const MAX_CHAPTER_WORDS = 50_000;
+export const MAX_PREPARED_WORDS = 100;
 export function countWords(text: string) {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
 }

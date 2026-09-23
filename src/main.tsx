@@ -11,7 +11,11 @@ import {
   type DemoBook,
   type View,
 } from './app-model';
-import { countWords, MAX_CHAPTER_WORDS } from './domain';
+import {
+  countWords,
+  MAX_CHAPTER_WORDS,
+  MAX_PREPARED_WORDS,
+} from './domain';
 import {
   deleteAccount,
   getCurrentUser,
@@ -42,6 +46,7 @@ import {
   splitTextIntoPdfChapters,
   type ImportedPdfChapter,
 } from './lib/pdf';
+import { extractTextFromEpub } from './lib/epub';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import {
   filterVocabularyForExport,
@@ -839,7 +844,7 @@ function Library({
           </div>
           <div className="library-intro-actions">
             <Button variant="outline" onClick={() => go('pdfImport')}>
-              <Icon name="download" /> Import PDF
+              <Icon name="download" /> Import a file
             </Button>
             <Button onClick={() => go('newBook')}>
               <Icon name="plus" /> Add a book
@@ -1096,7 +1101,7 @@ function BookDetail({
               <Icon name="download" /> Export vocabulary
             </Button>
             <button className="delete-action" onClick={() => go('pdfImport')}>
-              Import PDF
+              Import a file
             </button>
             <button
               className="delete-action"
@@ -1283,10 +1288,13 @@ function PdfImportSetup({
       return;
     }
     let active = true;
-    setTitle(file.name.replace(/\.pdf$/iu, ''));
+    setTitle(file.name.replace(/\.(?:pdf|epub)$/iu, ''));
     setReading(true);
     setError('');
-    void extractTextFromPdf(file)
+    const extractBookText = file.name.toLowerCase().endsWith('.epub')
+      ? extractTextFromEpub(file)
+      : extractTextFromPdf(file);
+    void extractBookText
       .then((extractedText) => {
         if (active) {
           setText(extractedText);
@@ -1338,8 +1346,8 @@ function PdfImportSetup({
             <span className="kicker">A NEW READING JOURNEY</span>
             <h1>Make room for your book.</h1>
             <p>
-              Import a text-based PDF and we’ll create its chapters for you. You
-              can process each chapter when you’re ready.
+              Import a text-based PDF or EPUB and we’ll create its chapters for
+              you. You can process each chapter when you’re ready.
             </p>
             <div className="new-book-tip">
               <Icon name="sparkle" />
@@ -1355,13 +1363,13 @@ function PdfImportSetup({
               <span className="new-book-step">01 / 01</span>
             </div>
             <label className="pdf-file-input">
-              PDF file
+              Book file
               <input
                 type="file"
-                accept="application/pdf,.pdf"
+                accept="application/pdf,.pdf,application/epub+zip,.epub"
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               />
-              <span>{file?.name ?? 'Choose a PDF file'}</span>
+              <span>{file?.name ?? 'Choose a PDF or EPUB file'}</span>
             </label>
             <label>
               Book title
@@ -1426,7 +1434,7 @@ function PdfImportSetup({
               />
               <small>Chapters end at the nearest paragraph or sentence.</small>
             </label>
-            {reading && <p className="form-status">Reading PDF…</p>}
+            {reading && <p className="form-status">Reading book…</p>}
             {chapters.length > 0 && !reading && (
               <div className="pdf-import-summary">
                 <b>
@@ -1798,7 +1806,7 @@ function ChapterSetup({
               <input
                 type="range"
                 min="1"
-                max="50"
+                max={MAX_PREPARED_WORDS}
                 value={amount}
                 onChange={(e) => setAmount(Number(e.target.value))}
               />
@@ -1997,6 +2005,12 @@ function Prepare({
   const [index, setIndex] = useState(0);
   const words = candidateItems.filter((c) => selected.has(c.id));
   const current = words[index] || candidateItems[0];
+  const dotWindowSize = 17;
+  const dotStart = Math.min(
+    Math.max(index - Math.floor(dotWindowSize / 2), 0),
+    Math.max(words.length - dotWindowSize, 0),
+  );
+  const visibleWords = words.slice(dotStart, dotStart + dotWindowSize);
   return (
     <AppShell view="prepare" go={go}>
       <main className="content prepare-content">
@@ -2036,8 +2050,11 @@ function Prepare({
               <Icon name="back" />
             </button>
             <div className="prep-dots">
-              {words.map((word, i) => (
-                <i className={i === index ? 'active' : ''} key={word.id} />
+              {visibleWords.map((word, i) => (
+                <i
+                  className={dotStart + i === index ? 'active' : ''}
+                  key={word.id}
+                />
               ))}
             </div>
             <button
@@ -2222,6 +2239,7 @@ function Reader({
   const [lookups, setLookups] = useState<Record<string, WordDetails>>({});
   const [translationError, setTranslationError] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
+  const [translationModalOpen, setTranslationModalOpen] = useState(false);
   const [removingWordId, setRemovingWordId] = useState<string | null>(null);
   const [chapterExportOpen, setChapterExportOpen] = useState(false);
   const [fontSize, setFontSize] = useState(20);
@@ -2295,6 +2313,10 @@ function Reader({
                     (word) => {
                       setActiveWord(word);
                       setTranslationError(null);
+                      const isCompactReader =
+                        window.matchMedia?.('(max-width: 1100px)').matches ??
+                        window.innerWidth <= 1100;
+                      if (isCompactReader) setTranslationModalOpen(true);
                       if (
                         candidateWordDetails(word, candidateItems) ||
                         lookups[word.toLowerCase()] ||
@@ -2308,17 +2330,18 @@ function Reader({
                         word,
                       })
                         .then((result) => {
+                          const details = {
+                            word: result.word,
+                            translation: result.translation,
+                            partOfSpeech: result.partOfSpeech,
+                            level: '—',
+                            context: result.context,
+                            confidence: result.confidence,
+                            bookId: book.id,
+                          } satisfies WordDetails;
                           setLookups((old) => ({
                             ...old,
-                            [word.toLowerCase()]: {
-                              word: result.word,
-                              translation: result.translation,
-                              partOfSpeech: result.partOfSpeech,
-                              level: '—',
-                              context: result.context,
-                              confidence: result.confidence,
-                              bookId: book.id,
-                            },
+                            [word.toLowerCase()]: details,
                           }));
                         })
                         .catch((error: unknown) => {
@@ -2487,6 +2510,86 @@ function Reader({
             title={`ChapterPrep – ${book.title} – ${chapter.title}`}
             onClose={() => setChapterExportOpen(false)}
           />
+        )}
+        {translationModalOpen && activeWord && (
+          <div
+            className="editor-modal-backdrop translation-modal-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget)
+                setTranslationModalOpen(false);
+            }}
+          >
+            <section
+              className="editor-modal translation-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="translation-modal-title"
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <div className="editor-modal-head">
+                <div>
+                  <span className="kicker">TRANSLATION</span>
+                  <h2 id="translation-modal-title">
+                    {active?.word ?? activeWord}
+                  </h2>
+                </div>
+                <button
+                  className="icon-button"
+                  aria-label="Close translation"
+                  onClick={() => setTranslationModalOpen(false)}
+                >
+                  <Icon name="close" />
+                </button>
+              </div>
+              {active ? (
+                <>
+                  <p className="translation-modal-result">
+                    {active.translation}
+                  </p>
+                  <span className="part-pill">{active.partOfSpeech}</span>
+                  <div className="panel-context">
+                    <span>FROM THIS CHAPTER</span>
+                    <p>{active.context}</p>
+                  </div>
+                  <div className="editor-modal-actions">
+                    <Button
+                      variant="outline"
+                      onClick={() => setTranslationModalOpen(false)}
+                    >
+                      Close
+                    </Button>
+                    <Button
+                      variant={saved.has(active.word) ? 'soft' : 'primary'}
+                      onClick={() => {
+                        void onSaveWord(active)
+                          .then(() => setTranslationModalOpen(false))
+                          .catch(() =>
+                            setTranslationError(
+                              'Unable to save this word. Please retry.',
+                            ),
+                          );
+                      }}
+                    >
+                      {saved.has(active.word) ? (
+                        <>
+                          <Icon name="check" /> Saved to vocabulary
+                        </>
+                      ) : (
+                        <>
+                          <Icon name="bookmark" /> Add to my words
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <p className="translation-modal-loading" aria-live="polite">
+                  {translationError ?? 'Translating…'}
+                </p>
+              )}
+            </section>
+          </div>
         )}
       </main>
     </AppShell>

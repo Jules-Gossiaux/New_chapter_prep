@@ -253,9 +253,10 @@ Content:
 - Extraction settings.
 - Clear save/extract action.
 
-PDF import is limited to text-based PDFs in the first version. Scanned PDFs or
-PDFs without extractable text must show a clear error; OCR is out of scope.
-Import uses a full book-creation page with the PDF filename as the default
+PDF and EPUB import are limited to extractable text. Scanned PDFs, DRM-protected
+files and EPUBs without readable spine content must show a clear error; OCR and
+DRM bypass are out of scope. Import uses a full book-creation page with the
+filename as the default
 title, plus the regular author, language and learner-level fields. After text
 extraction, the user chooses a target chapter size between 200 and 3000 words.
 The chapter count updates live as the target changes. Chapter boundaries are
@@ -357,9 +358,9 @@ Given valid title and target language, the user can create a book and see it in 
 
 Given valid chapter text, the user can save a chapter under a book with number/title metadata.
 
-### FR-2a — Import a text PDF
+### FR-2a — Import a text PDF or EPUB
 
-Given a text-based PDF and a target chapter size between 200 and 3000 words, the system extracts the text, splits it into ordered chapters at paragraph or sentence boundaries, and saves those chapters as unprocessed. Scanned or otherwise non-extractable PDFs are rejected with a recoverable error.
+Given a text-based PDF or EPUB and a target chapter size between 200 and 3000 words, the system extracts the text, splits it into ordered chapters at paragraph or sentence boundaries, and saves those chapters as unprocessed. Scanned or otherwise non-extractable files are rejected with a recoverable error.
 
 ### FR-2b — Detect imported language
 
@@ -533,6 +534,10 @@ Cover at least:
 - The application sidebar keeps Settings and the account control fixed at the
   bottom of the viewport; the account menu opens upward without requiring a
   second scroll.
+- The application sidebar itself remains fixed while the main content scrolls;
+  on mobile it becomes an off-canvas menu.
+- Book import actions use the generic “Import a file” label because both PDF and
+  EPUB files are supported.
 - Deleting a book also removes vocabulary entries that are no longer linked to
   any other book, while preserving shared vocabulary.
 - Chapter numbers are assigned automatically using the lowest available number;

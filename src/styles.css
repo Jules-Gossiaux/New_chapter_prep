@@ -1148,8 +1148,10 @@ textarea::placeholder {
   padding: 26px 18px;
   flex: none;
   z-index: 10;
-  position: sticky;
+  position: fixed;
+  left: 0;
   top: 0;
+  bottom: 0;
   height: 100vh;
   box-sizing: border-box;
 }
@@ -1304,6 +1306,8 @@ textarea::placeholder {
 .app-main {
   min-width: 0;
   flex: 1;
+  width: calc(100% - 245px);
+  margin-left: 245px;
 }
 .app-header {
   height: 72px;
@@ -2292,9 +2296,15 @@ textarea::placeholder {
 }
 .prep-dots {
   display: flex;
+  flex: 1;
+  min-width: 0;
   gap: 5px;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 8px;
 }
 .prep-dots i {
+  flex: none;
   width: 5px;
   height: 5px;
   border-radius: 50%;
@@ -2304,6 +2314,23 @@ textarea::placeholder {
   width: 17px;
   border-radius: 5px;
   background: var(--coral);
+}
+.translation-modal {
+  width: min(440px, 100%);
+}
+.translation-modal-result {
+  font-family: var(--serif);
+  color: var(--coral);
+  font-size: 30px;
+  margin: -3px 0 0;
+}
+.translation-modal-loading {
+  color: var(--muted);
+  font-size: 15px;
+  margin: 0;
+}
+.translation-modal .panel-context {
+  margin-top: 8px;
 }
 .prepare-bottom {
   display: flex;
@@ -2752,6 +2779,7 @@ textarea::placeholder {
 }
 .mini-word small {
   color: #8b9991;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3125,6 +3153,10 @@ textarea::placeholder {
     position: relative;
     z-index: 2;
   }
+  .app-main {
+    width: 100%;
+    margin-left: 0;
+  }
   .app-menu,
   .mobile-brand {
     display: block;
@@ -3407,6 +3439,420 @@ textarea::placeholder {
   }
   .export-modal .editor-modal-actions {
     flex-wrap: wrap;
+  }
+}
+
+/* Responsive safety net: content must never create a horizontal page scroll. */
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.app-shell,
+.app-main,
+.content,
+.narrow,
+.reader-page {
+  min-width: 0;
+}
+.vocab-card > *,
+.chapter-card > *,
+.chapter-open > *,
+.reader-layout > *,
+.book-hero > *,
+.new-book-layout > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.vocab-word,
+.vocab-meaning,
+.vocab-word b,
+.vocab-meaning b,
+.vocab-meaning small,
+.chapter-info,
+.chapter-info b,
+.chapter-info small,
+.book-hero-copy,
+.reading-copy {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.vocab-meaning small {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.reading-copy,
+.reading-copy p {
+  overflow-wrap: anywhere;
+}
+.button,
+input,
+textarea,
+select {
+  max-width: 100%;
+}
+
+@media (max-width: 1100px) {
+  /* Tablet and mobile layouts use an off-canvas navigation to preserve room
+     for the actual content. The menu button is the only way to reveal it. */
+  .sidebar {
+    position: fixed;
+    left: -270px;
+    top: 0;
+    bottom: 0;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    width: 245px;
+    transition: left 0.25s ease;
+    box-shadow: 15px 0 30px #18392b22;
+  }
+  .sidebar.open {
+    left: 0;
+  }
+  .sidebar-close {
+    display: block;
+    position: absolute;
+    right: 14px;
+    top: 22px;
+    border: 0;
+    background: transparent;
+    color: #819189;
+    padding: 8px;
+  }
+  .sidebar-top {
+    position: relative;
+    padding-bottom: 24px;
+  }
+  .app-nav {
+    margin-top: 24px;
+  }
+  .sidebar-bottom {
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: #102a2299;
+    border: 0;
+    z-index: 5;
+  }
+  .app-main {
+    width: 100%;
+    margin-left: 0;
+  }
+  .app-header {
+    height: 68px;
+    padding: 0 28px;
+    position: relative;
+    z-index: 2;
+  }
+  .app-menu,
+  .mobile-brand {
+    display: block;
+  }
+  .app-menu {
+    border: 0;
+    background: transparent;
+    color: var(--green);
+    padding: 8px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .mobile-brand .logo {
+    font-size: 17px;
+  }
+  .mobile-brand .logo-mark {
+    width: 26px;
+    height: 26px;
+    font-size: 18px;
+  }
+  .header-status {
+    display: none;
+  }
+  .content {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+  .page-intro h1,
+  .setup-header h1,
+  .review-header h1,
+  .prepare-top h1,
+  .vocabulary-head h1 {
+    font-size: clamp(36px, 5vw, 48px);
+    line-height: 1.05;
+  }
+  .search-box input,
+  .filter-select select {
+    font-size: 14px;
+  }
+  .button {
+    min-height: 44px;
+    font-size: 14px;
+  }
+  .vocab-card {
+    padding: 18px;
+  }
+  .vocab-word b,
+  .vocab-meaning b {
+    font-size: 17px;
+  }
+  .vocab-word small,
+  .vocab-meaning small {
+    font-size: 12px;
+  }
+  .chapter-info b {
+    font-size: 15px;
+  }
+  .chapter-info small {
+    font-size: 12px;
+  }
+  .reader-tools button {
+    min-width: 40px;
+    min-height: 40px;
+    font-size: 14px;
+  }
+  .mini-word {
+    font-size: 13px;
+    padding: 12px 10px;
+  }
+  .mini-word-remove {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .content.narrow {
+    width: min(100%, 920px);
+  }
+  .reader-page {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+  .reading-paper {
+    padding: 42px 48px;
+  }
+  .reader-layout {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 24px;
+  }
+  .vocab-card {
+    grid-template-columns: 40px minmax(130px, 180px) minmax(0, 1fr) 32px;
+  }
+}
+
+@media (max-width: 700px) {
+  .app-header {
+    height: 62px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .app-main {
+    width: 100%;
+  }
+  .content.narrow,
+  .content {
+    width: 100%;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .page-intro h1,
+  .setup-header h1,
+  .review-header h1,
+  .prepare-top h1,
+  .vocabulary-head h1 {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .new-book-layout {
+    width: 100%;
+  }
+  .book-grid {
+    grid-template-columns: 1fr;
+  }
+  .new-book-copy h1 {
+    font-size: clamp(34px, 11vw, 48px);
+  }
+  .new-book-card,
+  .setup-card,
+  .reading-paper,
+  .editor-modal {
+    max-width: 100%;
+  }
+  .new-book-card {
+    padding: 20px 16px;
+  }
+  .new-book-actions,
+  .setup-actions,
+  .editor-modal-actions {
+    width: 100%;
+  }
+  .new-book-actions .button,
+  .setup-actions .button,
+  .editor-modal-actions .button {
+    min-width: 0;
+  }
+  .chapter-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    padding: 0;
+  }
+  .chapter-open {
+    grid-column: 1 / -1;
+    width: 100%;
+    padding: 15px 12px;
+    gap: 10px;
+  }
+  .chapter-card > .chapter-delete,
+  .chapter-card > .chapter-process {
+    margin: 0 8px 10px;
+  }
+  .chapter-card > .chapter-delete:last-child {
+    justify-self: end;
+  }
+  .reader-page {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .reader-top {
+    gap: 12px;
+  }
+  .reader-top > .back-link {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .reader-tools {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .reader-tools button {
+    min-width: 32px;
+  }
+  .reading-paper {
+    padding: 24px 18px;
+  }
+  .reading-meta {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .reading-paper > h2 {
+    font-size: clamp(28px, 9vw, 36px);
+  }
+  .word-panel,
+  .reader-help,
+  .my-words-panel {
+    width: 100%;
+  }
+  .vocab-card {
+    grid-template-columns: 34px minmax(0, 1fr) 32px;
+    gap: 8px;
+    padding: 12px;
+  }
+  .vocab-word {
+    grid-column: 2;
+  }
+  .vocab-meaning {
+    grid-column: 2 / -1;
+    padding-top: 2px;
+  }
+  .vocab-more {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+  }
+  .export-note {
+    align-items: flex-start;
+  }
+  .export-note > span {
+    min-width: 0;
+    flex: 1;
+  }
+  .export-note button {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+  .editor-modal-backdrop {
+    padding: 12px;
+  }
+  .editor-modal {
+    width: 100%;
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    padding: 22px 16px;
+  }
+  .export-modal .editor-modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .export-modal .editor-modal-actions .button:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 420px) {
+  .content.narrow,
+  .content {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .app-header {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .mobile-brand .logo {
+    font-size: 14px;
+  }
+  .mobile-brand .logo-mark {
+    width: 22px;
+    height: 22px;
+  }
+  .book-grid {
+    grid-template-columns: 1fr;
+  }
+  .book-hero {
+    grid-template-columns: 1fr;
+  }
+  .large-cover {
+    width: min(100%, 150px);
+    height: 180px;
+  }
+  .book-hero-copy h1 {
+    font-size: 28px;
+  }
+  .chapter-open {
+    align-items: flex-start;
+  }
+  .chapter-index {
+    flex: none;
+  }
+  .chapter-card > .chapter-delete,
+  .chapter-card > .chapter-process {
+    font-size: 11px;
+  }
+  .reader-top {
+    grid-template-columns: 1fr;
+  }
+  .reader-tools {
+    justify-content: flex-start;
+  }
+  .reader-title {
+    grid-row: auto;
+  }
+  .reading-paper {
+    padding: 20px 14px;
+  }
+  .new-book-actions,
+  .setup-actions {
+    flex-direction: column-reverse;
+  }
+  .new-book-actions .button,
+  .setup-actions .button {
+    width: 100%;
   }
 }
 
