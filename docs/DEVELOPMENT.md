@@ -14,6 +14,25 @@ Install Node.js and run `npm install`. Use `npm run dev` for the Vite server. Us
 
 The schema and Auth-backed book/chapter path are live. The Edge Function is deployed separately from the frontend build; it remains unavailable until `GEMINI_API_KEY` is configured and an authenticated extraction has been verified.
 
+## Personal hosted deployment
+
+The personal production frontend is hosted on Vercel at `https://newchapterprep.vercel.app`. The Vercel project uses `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` as Production and Preview environment variables. The publishable key is expected in a browser build; never add a Supabase secret or `service_role` key to a `VITE_` variable.
+
+To deploy a new frontend version from an authenticated local machine:
+
+```sh
+npx vercel login
+npx vercel --prod
+```
+
+The Supabase Edge Functions are deployed separately:
+
+```sh
+npx supabase functions deploy --project-ref auubivhhifkasnlsmine --use-api --yes
+```
+
+The Vercel project is currently deployed through the CLI rather than an automatic GitHub connection. The Supabase Auth site URL and redirect URLs are declared in `supabase/config.toml`; apply them with `npx supabase config push --project-ref auubivhhifkasnlsmine` only after reviewing `npx supabase config diff --project-ref auubivhhifkasnlsmine`.
+
 ## Git handoff
 
 The canonical remote is `origin` at `https://github.com/Jules-Gossiaux/New_chapter_prep.git`. Work is developed on `codex/*` branches and merged into `main` through review. Before and after each task, inspect Git status. Commit only focused, verified changes with conventional commit messages, then push the feature branch when credentials and network access permit. Never commit API keys or book content.
