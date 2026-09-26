@@ -8,7 +8,9 @@ The `vocabulary_frequency` table holds the first 10,000 distinct normalized form
 
 The extraction function uses frequency cutoffs of A1 500, A2 1,500, B1 3,000, B2 6,000, C1 10,000, and C2 15,000. It keeps only words occurring in the chapter strictly above the learner's cutoff and ranks the closest words first. The indicative label saved for each word is assigned from its frequency rank, not estimated by Gemini: ranks 1–500 A1, 501–1,500 A2, 1,501–3,000 B1, 3,001–6,000 B2, 6,001–10,000 B2–C1, and 10,001–15,000 C1 (uncertain). No C2 band is defined yet, so words above 15,000 remain unclassified rather than being mixed into C1. These rank bands are working estimates, not official CEFR vocabulary boundaries.
 
-The current reference table only contains ranks 1–10,000 for each supported language. Therefore, the 10,001–15,000 C1 (uncertain) band and C2 learner cutoff cannot produce words until a larger, quality-reviewed frequency list is loaded. The migration expands the table's allowed rank range to 15,000 but does not add or download frequency data.
+The reference table is populated through source rank 15,000 for English and French by the frequency-data migration. The next 5,000 source ranks are imported directly from the corresponding CSVs in `orgtre/top-open-subtitles-sentences`; the migration preserves the original ranks and occurrence counts. The source list is corpus-based and noisy (it may include names, slang, and subtitle artefacts), so the rank bands remain indicative, especially for C1.
+
+To regenerate the data migration from the upstream CSVs, download `en_top_words.csv` and `fr_top_words.csv` from `bld/top_words/`, then run `node scripts/generate-frequency-ranks-migration.mjs <en.csv> <fr.csv> <output.sql>`. This only generates a local migration; it does not apply it to Supabase. The word lists are distributed under CC BY 3.0, so keep the attribution in generated migrations and distribution materials.
 
 ## Long chapters
 
