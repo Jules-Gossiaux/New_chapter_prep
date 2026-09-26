@@ -579,6 +579,45 @@ export async function saveBackendVocabularyEntries(input: {
   }
 }
 
+export async function clearBackendChapterVocabulary(chapterId: string) {
+  const { client, user } = await requireUser();
+  const { data: links, error: linksError } = await client
+    .from('chapter_vocabulary')
+    .select('vocabulary_entry_id')
+    .eq('chapter_id', chapterId);
+  if (linksError) throw linksError;
+
+  const entryIds = Array.from(
+    new Set((links ?? []).map((link) => String(link.vocabulary_entry_id))),
+  );
+  if (!entryIds.length) return;
+
+  const { error: deleteLinksError } = await client
+    .from('chapter_vocabulary')
+    .delete()
+    .eq('chapter_id', chapterId);
+  if (deleteLinksError) throw deleteLinksError;
+
+  const { data: remainingLinks, error: remainingLinksError } = await client
+    .from('chapter_vocabulary')
+    .select('vocabulary_entry_id')
+    .in('vocabulary_entry_id', entryIds);
+  if (remainingLinksError) throw remainingLinksError;
+
+  const stillLinked = new Set(
+    (remainingLinks ?? []).map((link) => String(link.vocabulary_entry_id)),
+  );
+  const orphanedIds = entryIds.filter((id) => !stillLinked.has(id));
+  if (!orphanedIds.length) return;
+
+  const { error: deleteEntriesError } = await client
+    .from('vocabulary_entries')
+    .delete()
+    .eq('user_id', user.id)
+    .in('id', orphanedIds);
+  if (deleteEntriesError) throw deleteEntriesError;
+}
+
 export async function deleteBackendVocabularyEntry(entryId: string) {
   const { client } = await requireUser();
   const { data, error } = await client

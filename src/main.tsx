@@ -27,6 +27,7 @@ import {
 import {
   createBackendBook,
   createBackendChapter,
+  clearBackendChapterVocabulary,
   deleteBackendBook,
   deleteBackendChapter,
   deleteBackendVocabularyEntry,
@@ -2659,6 +2660,28 @@ function Reader({
                         <Icon name="trash" />
                       </button>
                     )}
+                    {!savedEntry && (
+                      <button
+                        className="mini-word-remove mini-word-add"
+                        type="button"
+                        title={`Add ${details.word} to vocabulary`}
+                        aria-label={`Add ${details.word} to vocabulary`}
+                        disabled={savingWord}
+                        onClick={() => {
+                          setSavingWord(true);
+                          setTranslationError(null);
+                          void onSaveWord(details)
+                            .catch(() =>
+                              setTranslationError(
+                                'Unable to save this word. Please retry.',
+                              ),
+                            )
+                            .finally(() => setSavingWord(false));
+                        }}
+                      >
+                        <Icon name="bookmark" />
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -4132,6 +4155,7 @@ function App() {
     const currentChapter = selectedBook?.chapters.find(
       (chapter) => chapter.id === chapterId,
     );
+    const wasAlreadyProcessed = currentChapter?.status === 'Ready';
     if (
       currentChapter &&
       selectedBook &&
@@ -4177,6 +4201,10 @@ function App() {
       return;
     }
     const result = await extractVocabulary({ chapterId, requestedCount });
+    if (wasAlreadyProcessed) {
+      await clearBackendChapterVocabulary(chapterId);
+      await refreshVocabulary();
+    }
     const extracted = result.items.map((item) => ({
       id: item.id,
       bookId: selectedBook?.id ?? '',

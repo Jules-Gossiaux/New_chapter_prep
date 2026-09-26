@@ -1510,6 +1510,10 @@ textarea::placeholder {
   isolation: isolate;
   color: #fff;
 }
+.book-cover.has-cover-image > span,
+.book-cover.has-cover-image > small {
+  display: none;
+}
 .book-cover > img {
   position: absolute;
   z-index: -2;
@@ -1519,12 +1523,7 @@ textarea::placeholder {
   object-fit: cover;
 }
 .book-cover.has-cover-image::after {
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(180deg, #0c171044 5%, transparent 48%, #0c1710b8 100%);
-  content: '';
+  content: none;
 }
 .book-cover b {
   font-size: 18px;
@@ -2159,7 +2158,7 @@ textarea::placeholder {
 }
 .search-box input {
   border: 0;
-  padding: 0;
+  padding: 0 3px;
   background: transparent;
   width: 120px;
   font-size: 11px;
@@ -2877,6 +2876,10 @@ textarea::placeholder {
 .vocab-more:hover,
 .vocab-more:focus-visible {
   color: #ad563f;
+}
+.mini-word-add:hover,
+.mini-word-add:focus-visible {
+  color: var(--green);
 }
 .mini-word-remove:disabled,
 .vocab-more:disabled {
