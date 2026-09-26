@@ -75,6 +75,20 @@ Deno.serve(async (request) => {
     const admin = createClient(url, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+    const { data: ownedBooks, error: booksError } = await admin
+      .from('books')
+      .select('cover_path')
+      .eq('user_id', user.id);
+    if (booksError) throw booksError;
+    const coverPaths = (ownedBooks ?? [])
+      .map((book) => book.cover_path)
+      .filter((path): path is string => typeof path === 'string' && !!path);
+    if (coverPaths.length) {
+      const { error: coversError } = await admin.storage
+        .from('book-covers')
+        .remove(coverPaths);
+      if (coversError) throw coversError;
+    }
     const { error: deleteError } = await admin.auth.admin.deleteUser(user.id);
     if (deleteError) throw deleteError;
     return json({ deleted: true });

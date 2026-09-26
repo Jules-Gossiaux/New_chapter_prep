@@ -24,6 +24,8 @@ detects supported source languages for pasted text and PDF extraction.
 
 Accepted vocabulary is persisted in `vocabulary_entries` and linked to its source chapter through `chapter_vocabulary`. The application loads that user-owned list at session restore, derives the sidebar badge from it, and uses the same list for filtering, removal, and CSV export. This deliberately avoids deriving global vocabulary from the transient candidates of the last chapter opened. `20260920192220_backfill_extracted_vocabulary.sql` imports the newest completed extraction for each existing chapter, preserving already prepared vocabulary after the persistence fix.
 
+Reading completion is stored independently from vocabulary processing in `reading_progress.completed`; book progress is the percentage of chapters marked read. Book cover photos are stored in the private `book-covers` Storage bucket under an owner/book path, with short-lived signed URLs and authenticated Storage policies. Deleting a book or account also removes its cover image.
+
 Vocabulary links retain all related chapter and book scopes in the client mapper,
 so book and chapter exports do not accidentally include unrelated vocabulary.
 Account deletion is handled by the authenticated `delete-account` Edge Function:

@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   candidates,
+  calculateBookProgress,
   demoBooks,
   displayNameFromEmail,
   nextAvailableChapterNumber,
@@ -31,10 +32,14 @@ import {
   deleteBackendVocabularyEntry,
   listBackendChapterCandidates,
   listBackendChapters,
+  listBackendChapterReadStatus,
   listBooks,
   listBackendVocabularyEntries,
+  getBackendBookCoverUrl,
   markBackendBookOpened,
   saveBackendVocabularyEntries,
+  setBackendChapterRead,
+  uploadBackendBookCover,
   type BackendVocabularyEntry,
   type BackendBook,
   updateBackendBook,
@@ -73,7 +78,8 @@ type IconName =
   | 'menu'
   | 'close'
   | 'chevron'
-  | 'trash';
+  | 'trash'
+  | 'refresh';
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, string> = {
     book: 'M5 4.5h10a2 2 0 0 1 2 2V18H7a2 2 0 0 0-2 2V4.5Zm0 15.5a2 2 0 0 1 2-2h10M8 8h6M8 11h6',
@@ -94,6 +100,8 @@ function Icon({ name }: { name: IconName }) {
     close: 'M6 6l12 12M18 6 6 18',
     chevron: 'm7 10 5 5 5-5',
     trash: 'M5 7h14m-9 4v6m4-6v6M9 7V5h6v2m-9 0 1 13h10l1-13',
+    refresh:
+      'M20 7v5h-5M4 17v-5h5m10.2-2A7 7 0 0 0 6.3 7.3L4 9m16 6-2.3 1.7A7 7 0 0 1 4.8 14',
   };
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="icon">
@@ -677,6 +685,7 @@ function NavItem({
 function backendBookToDemo(
   book: BackendBook,
   chapters: DemoBook['chapters'],
+  coverImage?: string,
 ): DemoBook {
   return {
     id: book.id,
@@ -684,8 +693,10 @@ function backendBookToDemo(
     author: book.author || 'Unknown author',
     language: book.targetLanguage,
     level: book.learnerLevel,
-    progress: 0,
+    progress: calculateBookProgress(chapters),
     cover: 'custom',
+    coverImage,
+    coverPath: book.coverPath,
     chapters,
   };
 }
@@ -853,7 +864,10 @@ function Library({
         </div>
         {currentBook ? (
           <section className="continue-card">
-            <div className={`continue-cover cover-${currentBook.cover}`}>
+            <div
+              className={`continue-cover book-cover cover-${currentBook.cover} ${currentBook.coverImage ? 'has-cover-image' : ''}`}
+            >
+              {currentBook.coverImage && <img src={currentBook.coverImage} alt="" />}
               <span>{currentBook.title}</span>
             </div>
             <div className="continue-copy">
@@ -940,7 +954,10 @@ function Library({
 function BookCard({ book, onClick }: { book: DemoBook; onClick: () => void }) {
   return (
     <button className="book-card" onClick={onClick}>
-      <div className={`book-cover cover-${book.cover}`}>
+      <div
+        className={`book-cover cover-${book.cover} ${book.coverImage ? 'has-cover-image' : ''}`}
+      >
+        {book.coverImage && <img src={book.coverImage} alt="" />}
         <span>{book.title}</span>
         <small>{book.language.toUpperCase()}</small>
       </div>
@@ -970,6 +987,8 @@ function BookDetail({
   onEditBook,
   onEditChapter,
   onProcessChapter,
+  onSetChapterRead,
+  onUploadCover,
   onAddChapter,
   saved,
   vocabularyEntries,
@@ -995,6 +1014,11 @@ function BookDetail({
     },
   ) => Promise<void>;
   onProcessChapter: (chapter: DemoBook['chapters'][number]) => Promise<void>;
+  onSetChapterRead: (
+    chapter: DemoBook['chapters'][number],
+    read: boolean,
+  ) => Promise<void>;
+  onUploadCover: (book: DemoBook, file: File) => Promise<void>;
   onAddChapter: () => void;
   saved: Set<string>;
   vocabularyEntries: SavedVocabularyItem[];
@@ -1014,6 +1038,8 @@ function BookDetail({
   const [processingChapter, setProcessingChapter] = useState<string | null>(
     null,
   );
+  const [coverBusy, setCoverBusy] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const openChapter = async (chapter: DemoBook['chapters'][number]) => {
     setError(null);
     try {
@@ -1062,6 +1088,25 @@ function BookDetail({
       setProcessingChapter(null);
     }
   };
+  const uploadCover = async (file: File | undefined) => {
+    if (!file) return;
+    setCoverBusy(true);
+    setError(null);
+    try {
+      await onUploadCover(book, file);
+    } catch (uploadError) {
+      setError(
+        uploadError instanceof Error && uploadError.message === 'COVER_TOO_LARGE'
+          ? 'Choose a cover image smaller than 5 MB.'
+          : uploadError instanceof Error &&
+              uploadError.message === 'COVER_UNSUPPORTED_TYPE'
+            ? 'Use a JPG, PNG, or WebP image.'
+            : 'Unable to upload this cover. Please retry.',
+      );
+    } finally {
+      setCoverBusy(false);
+    }
+  };
   return (
     <AppShell view="book" go={go}>
       <main className="content narrow">
@@ -1069,7 +1114,10 @@ function BookDetail({
           <Icon name="back" /> Back to library
         </button>
         <section className="book-hero">
-          <div className={`book-cover large-cover cover-${book.cover}`}>
+          <div
+            className={`book-cover large-cover cover-${book.cover} ${book.coverImage ? 'has-cover-image' : ''}`}
+          >
+            {book.coverImage && <img src={book.coverImage} alt="" />}
             <span>{book.title}</span>
             <small>{book.language.toUpperCase()}</small>
           </div>
@@ -1100,6 +1148,28 @@ function BookDetail({
             <Button variant="soft" onClick={() => setActiveTab('vocabulary')}>
               <Icon name="download" /> Export vocabulary
             </Button>
+            <button
+              className="delete-action cover-upload-action"
+              onClick={() => coverInputRef.current?.click()}
+              disabled={coverBusy}
+            >
+              {coverBusy
+                ? 'Uploading cover…'
+                : book.coverImage
+                  ? 'Change cover photo'
+                  : 'Add cover photo'}
+            </button>
+            <input
+              ref={coverInputRef}
+              className="visually-hidden"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(event) => {
+                void uploadCover(event.target.files?.[0]);
+                event.currentTarget.value = '';
+              }}
+              aria-label="Choose a book cover image"
+            />
             <button className="delete-action" onClick={() => go('pdfImport')}>
               Import PDF / EPUB
             </button>
@@ -1174,10 +1244,10 @@ function BookDetail({
                           ? `${chapter.words.toLocaleString()} words`
                           : 'No text added yet'}
                         {chapter.words ? ' · ' : ''}
-                        {chapter.status}
+                        {chapter.read ? 'Read' : chapter.status}
                       </small>
                     </span>
-                    <Status status={chapter.status} />
+                    <Status status={chapter.read ? 'Read' : chapter.status} />
                     <span className="chapter-arrow">
                       <Icon name="arrow" />
                     </span>
@@ -1188,7 +1258,17 @@ function BookDetail({
                   >
                     Edit
                   </button>
-                  {chapter.status === 'Not started' && (
+                  {chapter.status === 'Ready' ? (
+                    <button
+                      className="chapter-reprocess"
+                      title="Reprocess vocabulary for this chapter"
+                      aria-label={`Reprocess ${chapter.title}`}
+                      onClick={() => void processChapter(chapter)}
+                      disabled={processingChapter === chapter.id}
+                    >
+                      <Icon name="refresh" />
+                    </button>
+                  ) : chapter.status === 'Not started' ? (
                     <button
                       className="chapter-process"
                       onClick={() => void processChapter(chapter)}
@@ -1198,7 +1278,19 @@ function BookDetail({
                         ? 'Processing…'
                         : 'Process chapter'}
                     </button>
-                  )}
+                  ) : null}
+                  <button
+                    className={`chapter-read-toggle ${chapter.read ? 'is-read' : ''}`}
+                    onClick={() =>
+                      void onSetChapterRead(chapter, !chapter.read).catch(() =>
+                        setError('Unable to update reading status. Please retry.'),
+                      )
+                    }
+                    aria-label={chapter.read ? 'Mark as unread' : 'Mark as read'}
+                    title={chapter.read ? 'Mark as unread' : 'Mark as read'}
+                  >
+                    {chapter.read ? <Icon name="check" /> : 'Mark read'}
+                  </button>
                   <button
                     className="chapter-delete"
                     onClick={() => void removeChapter(chapter)}
@@ -2221,6 +2313,7 @@ function Reader({
   saved,
   onSaveWord,
   onRemoveWord,
+  onNextChapter,
   vocabularyEntries,
   book,
   chapter,
@@ -2230,6 +2323,7 @@ function Reader({
   saved: Set<string>;
   onSaveWord: (word: WordDetails) => Promise<void>;
   onRemoveWord: (entry: SavedVocabularyItem) => Promise<void>;
+  onNextChapter: (chapter: DemoBook['chapters'][number]) => Promise<void>;
   vocabularyEntries: SavedVocabularyItem[];
   book: DemoBook;
   chapter: DemoBook['chapters'][number];
@@ -2241,8 +2335,16 @@ function Reader({
   const [translating, setTranslating] = useState(false);
   const [translationModalOpen, setTranslationModalOpen] = useState(false);
   const [removingWordId, setRemovingWordId] = useState<string | null>(null);
+  const [savingWord, setSavingWord] = useState(false);
   const [chapterExportOpen, setChapterExportOpen] = useState(false);
+  const [nextChapterError, setNextChapterError] = useState<string | null>(null);
   const [fontSize, setFontSize] = useState(20);
+  useEffect(() => {
+    setActiveWord(null);
+    setTranslationModalOpen(false);
+    setTranslationError(null);
+    window.scrollTo(0, 0);
+  }, [chapter.id]);
   const active = activeWord
     ? (candidateWordDetails(activeWord, candidateItems) ??
       lookups[activeWord.toLowerCase()] ??
@@ -2268,6 +2370,54 @@ function Reader({
     book.id,
     chapter.id,
   );
+  const sortedChapters = sortChapterPreviews(book.chapters);
+  const currentChapterIndex = sortedChapters.findIndex(
+    (item) => item.id === chapter.id,
+  );
+  const nextChapter = sortedChapters[currentChapterIndex + 1];
+  const activeSavedEntry = active
+    ? (vocabularyEntries.find(
+        (entry) =>
+          entry.word.toLocaleLowerCase() === active.word.toLocaleLowerCase(),
+      ) ??
+      (!isSupabaseConfigured &&
+      Array.from(saved).some(
+        (word) => word.toLocaleLowerCase() === active.word.toLocaleLowerCase(),
+      )
+        ? {
+            ...active,
+            id: active.word,
+            bookTitle: book.title,
+            bookIds: [book.id],
+            chapterIds: [chapter.id],
+            createdAt: '',
+          }
+        : null))
+    : null;
+  const activeIsSaved = Boolean(activeSavedEntry);
+  const toggleActiveWordSaved = async () => {
+    if (!active) return;
+    setTranslationError(null);
+    if (activeSavedEntry) {
+      setRemovingWordId(activeSavedEntry.id);
+      try {
+        await onRemoveWord(activeSavedEntry);
+      } catch {
+        setTranslationError('Unable to remove this word. Please retry.');
+      } finally {
+        setRemovingWordId(null);
+      }
+      return;
+    }
+    setSavingWord(true);
+    try {
+      await onSaveWord(active);
+    } catch {
+      setTranslationError('Unable to save this word. Please retry.');
+    } finally {
+      setSavingWord(false);
+    }
+  };
   return (
     <AppShell view="reader" go={go} savedCount={saved.size}>
       <main className="reader-page">
@@ -2360,11 +2510,33 @@ function Reader({
               ))}
             </div>
             <div className="reader-end">
-              <span>— End of chapter —</span>
               <Button variant="soft" onClick={() => go('book')}>
                 Back to chapters
               </Button>
+              {nextChapter && (
+                <Button
+                  onClick={() => {
+                    setNextChapterError(null);
+                    void onNextChapter(nextChapter).catch(() =>
+                      setNextChapterError(
+                        'Unable to open the next chapter. Please retry.',
+                      ),
+                    );
+                  }}
+                  variant={nextChapter.status === 'Ready' ? 'soft' : 'primary'}
+                >
+                  {nextChapter.status === 'Ready'
+                    ? 'Go to next chapter'
+                    : 'Process the next chapter'}{' '}
+                  <Icon name="arrow" />
+                </Button>
+              )}
             </div>
+            {nextChapterError && (
+              <p className="form-error" role="alert">
+                {nextChapterError}
+              </p>
+            )}
           </article>
           <aside className="reader-aside">
             {active || (activeWord && translating) ? (
@@ -2392,22 +2564,23 @@ function Reader({
                 {active && (
                   <Button
                     className="full-button"
-                    variant={saved.has(active.word) ? 'soft' : 'primary'}
-                    onClick={() =>
-                      void onSaveWord(active).catch(() =>
-                        setTranslationError(
-                          'Unable to save this word. Please retry.',
-                        ),
-                      )
+                    variant={activeIsSaved ? 'soft' : 'primary'}
+                    disabled={savingWord || removingWordId === activeSavedEntry?.id}
+                    aria-label={
+                      activeIsSaved
+                        ? `Remove ${active.word} from vocabulary`
+                        : `Save ${active.word} to vocabulary`
                     }
+                    onClick={() => void toggleActiveWordSaved()}
                   >
-                    {saved.has(active.word) ? (
+                    {activeIsSaved ? (
                       <>
-                        <Icon name="check" /> Saved to vocabulary
+                        <Icon name="check" /> Saved to vocabulary · Remove
                       </>
                     ) : (
                       <>
-                        <Icon name="bookmark" /> Add to my words
+                        <Icon name="bookmark" />{' '}
+                        {savingWord ? 'Saving…' : 'Add to my words'}
                       </>
                     )}
                   </Button>
@@ -2560,20 +2733,18 @@ function Reader({
                       Close
                     </Button>
                     <Button
-                      variant={saved.has(active.word) ? 'soft' : 'primary'}
-                      onClick={() => {
-                        void onSaveWord(active)
-                          .then(() => setTranslationModalOpen(false))
-                          .catch(() =>
-                            setTranslationError(
-                              'Unable to save this word. Please retry.',
-                            ),
-                          );
-                      }}
+                      variant={activeIsSaved ? 'soft' : 'primary'}
+                      disabled={savingWord || removingWordId === activeSavedEntry?.id}
+                      aria-label={
+                        activeIsSaved
+                          ? `Remove ${active.word} from vocabulary`
+                          : `Save ${active.word} to vocabulary`
+                      }
+                      onClick={() => void toggleActiveWordSaved()}
                     >
-                      {saved.has(active.word) ? (
+                      {activeIsSaved ? (
                         <>
-                          <Icon name="check" /> Saved to vocabulary
+                          <Icon name="check" /> Saved to vocabulary · Remove
                         </>
                       ) : (
                         <>
@@ -3468,6 +3639,9 @@ function App() {
 
   const removeVocabularyWord = async (entry: SavedVocabularyItem) => {
     if (!isSupabaseConfigured) {
+      setVocabularyEntries((old) =>
+        old.filter((word) => word.id !== entry.id),
+      );
       setSaved((old) => {
         const next = new Set(old);
         next.delete(entry.word);
@@ -3500,24 +3674,33 @@ function App() {
     const backendBooks = await listBooks();
     const loadedBooks = await Promise.all(
       backendBooks.map(async (book) => {
-        const chapters = await listBackendChapters(book.id);
+        const backendChapters = await listBackendChapters(book.id);
+        const readChapterIds = await listBackendChapterReadStatus(
+          backendChapters.map((chapter) => chapter.id),
+        );
+        const chapters = backendChapters.map((chapter) => ({
+          id: chapter.id,
+          number: chapter.number,
+          title: chapter.title,
+          words: chapter.wordCount,
+          sourceText: chapter.sourceText,
+          language: chapter.targetLanguage,
+          learnerLevel: chapter.learnerLevel,
+          read: readChapterIds.has(chapter.id),
+          status:
+            chapter.extractionStatus === 'complete'
+              ? ('Ready' as const)
+              : chapter.extractionStatus === 'pending'
+                ? ('In progress' as const)
+                : ('Not started' as const),
+        }));
+        const coverImage = await getBackendBookCoverUrl(book.coverPath).catch(
+          () => null,
+        );
         return backendBookToDemo(
           book,
-          chapters.map((chapter) => ({
-            id: chapter.id,
-            number: chapter.number,
-            title: chapter.title,
-            words: chapter.wordCount,
-            sourceText: chapter.sourceText,
-            language: chapter.targetLanguage,
-            learnerLevel: chapter.learnerLevel,
-            status:
-              chapter.extractionStatus === 'complete'
-                ? ('Ready' as const)
-                : chapter.extractionStatus === 'pending'
-                  ? ('In progress' as const)
-                  : ('Not started' as const),
-          })),
+          chapters,
+          coverImage ?? undefined,
         );
       }),
     );
@@ -3664,6 +3847,10 @@ function App() {
     const nextBook = {
       ...selectedBook,
       chapters: [...selectedBook.chapters, createdChapter],
+      progress: calculateBookProgress([
+        ...selectedBook.chapters,
+        createdChapter,
+      ]),
     };
     setSelectedChapter(createdChapter);
     setCandidateItems([]);
@@ -3792,6 +3979,7 @@ function App() {
             targetLanguage: language,
           }),
           book.chapters,
+          book.coverImage,
         )
       : { ...book, title, author, language };
     setSelectedBook(updated);
@@ -3855,6 +4043,9 @@ function App() {
     const updated = {
       ...selectedBook,
       chapters: selectedBook.chapters.filter((item) => item.id !== chapter.id),
+      progress: calculateBookProgress(
+        selectedBook.chapters.filter((item) => item.id !== chapter.id),
+      ),
     };
     setSelectedBook(updated);
     setBooks((old) =>
@@ -3888,6 +4079,44 @@ function App() {
         ? { ...chapter, status: 'Ready' as const }
         : chapter,
     );
+  };
+  const setChapterRead = async (
+    chapter: DemoBook['chapters'][number],
+    read: boolean,
+  ) => {
+    if (isSupabaseConfigured) await setBackendChapterRead(chapter.id, read);
+    const updateBook = (book: DemoBook) => {
+      const chapters = book.chapters.map((item) =>
+        item.id === chapter.id ? { ...item, read } : item,
+      );
+      return {
+        ...book,
+        chapters,
+        progress: calculateBookProgress(chapters),
+      };
+    };
+    setSelectedBook((book) =>
+      book && book.id === selectedBook?.id ? updateBook(book) : book,
+    );
+    setBooks((old) =>
+      old.map((book) => (book.id === selectedBook?.id ? updateBook(book) : book)),
+    );
+    setSelectedChapter((current) =>
+      current?.id === chapter.id ? { ...current, read } : current,
+    );
+  };
+
+  const changeBookCover = async (book: DemoBook, file: File) => {
+    const uploaded = isSupabaseConfigured
+      ? await uploadBackendBookCover(book.id, file, book.coverPath ?? null)
+      : { path: null, url: URL.createObjectURL(file) };
+    const updated = {
+      ...book,
+      coverPath: uploaded.path ?? null,
+      coverImage: uploaded.url,
+    };
+    setSelectedBook((current) => (current?.id === book.id ? updated : current));
+    setBooks((old) => old.map((item) => (item.id === book.id ? updated : item)));
   };
   const extractChapter = async ({
     chapterId,
@@ -3993,6 +4222,17 @@ function App() {
     setSelected(new Set());
     go('chapter');
   };
+  const openNextChapter = async (chapter: DemoBook['chapters'][number]) => {
+    if (chapter.status === 'Ready') {
+      await openChapter(chapter);
+      go('reader');
+      return;
+    }
+    setSelectedChapter(chapter);
+    setCandidateItems([]);
+    setSelected(new Set());
+    go('chapter');
+  };
   const handleSignOut = async () => {
     await signOut();
     setUserLabel(null);
@@ -4091,6 +4331,8 @@ function App() {
           onEditBook={editBook}
           onEditChapter={editChapter}
           onProcessChapter={processChapter}
+          onSetChapterRead={setChapterRead}
+          onUploadCover={changeBookCover}
           saved={saved}
           vocabularyEntries={vocabularyEntries}
           onRemoveVocabulary={removeVocabularyWord}
@@ -4172,6 +4414,7 @@ function App() {
           saved={saved}
           onSaveWord={saveWord}
           onRemoveWord={removeVocabularyWord}
+          onNextChapter={openNextChapter}
           vocabularyEntries={vocabularyEntries}
           book={selectedBook}
           chapter={selectedChapter}
@@ -4187,6 +4430,8 @@ function App() {
           onEditBook={editBook}
           onEditChapter={editChapter}
           onProcessChapter={processChapter}
+          onSetChapterRead={setChapterRead}
+          onUploadCover={changeBookCover}
           saved={saved}
           vocabularyEntries={vocabularyEntries}
           onRemoveVocabulary={removeVocabularyWord}
