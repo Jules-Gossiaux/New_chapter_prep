@@ -14,13 +14,25 @@ const json = (body: unknown, status = 200) =>
 const MAX_CHAPTER_WORDS = 50_000;
 const MAX_REQUESTED_WORDS = 100;
 const levelFrequencyCutoffs: Record<string, number> = {
-  A1: 300,
+  A1: 500,
   A2: 1500,
-  B1: 2500,
-  B2: 3500,
-  C1: 7000,
-  C2: 10000,
+  B1: 3000,
+  B2: 6000,
+  C1: 10000,
+  // C2 remains unclassified; this conservative cutoff prevents C1 words
+  // from being presented as C2 until a C2 band and its data are defined.
+  C2: 15000,
 };
+
+function frequencyLevelForRank(rank: number) {
+  if (rank <= 500) return 'A1';
+  if (rank <= 1500) return 'A2';
+  if (rank <= 3000) return 'B1';
+  if (rank <= 6000) return 'B2';
+  if (rank <= 10000) return 'B2–C1';
+  if (rank <= 15000) return 'C1 (uncertain)';
+  return 'Unclassified';
+}
 
 type FrequencyRow = {
   normalized_word: string;
@@ -332,7 +344,7 @@ Deno.serve(async (request) => {
         503,
       );
     }
-    const prompt = `You enrich pre-selected vocabulary cards. The words were selected deterministically from a frequency list: they are above the learner's assumed ${learnerLevel} vocabulary threshold, ordered from most useful to less frequent. Do not add, replace, or reorder words. Return JSON only: {"items":[{"word":"exact candidate word","lemma":"dictionary lemma","translation":"translation in ${nativeLanguage}","partOfSpeech":"part of speech","level":"CEFR estimate","context":"copy the supplied context sentence","confidence":"High or Medium"}]}. Exclude a candidate only when it is clearly a proper name, a malformed token, or cannot be translated usefully. Do not return a full chapter translation.\n\nCANDIDATES:\n${JSON.stringify(
+    const prompt = `You enrich pre-selected vocabulary cards. The words were selected deterministically from a frequency list: they are above the learner's assumed ${learnerLevel} vocabulary threshold, ordered from most useful to less frequent. Do not add, replace, or reorder words. Return JSON only: {"items":[{"word":"exact candidate word","lemma":"dictionary lemma","translation":"translation in ${nativeLanguage}","partOfSpeech":"part of speech","context":"copy the supplied context sentence","confidence":"High or Medium"}]}. Do not estimate a CEFR level; the application assigns an indicative level from the word's frequency rank. Exclude a candidate only when it is clearly a proper name, a malformed token, or cannot be translated usefully. Do not return a full chapter translation.\n\nCANDIDATES:\n${JSON.stringify(
       proposed.map(({ word, frequency_rank, context }) => ({
         word,
         frequencyRank: frequency_rank,
@@ -429,10 +441,7 @@ Deno.serve(async (request) => {
             typeof value?.partOfSpeech === 'string'
               ? value.partOfSpeech.trim() || 'word'
               : 'word',
-          level:
-            typeof value?.level === 'string'
-              ? value.level.trim() || learnerLevel
-              : learnerLevel,
+          level: frequencyLevelForRank(candidate.frequency_rank),
           context: candidate.context,
           confidence: value?.confidence === 'High' ? 'High' : 'Medium',
           frequencyRank: candidate.frequency_rank,

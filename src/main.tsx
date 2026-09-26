@@ -3963,8 +3963,8 @@ function App() {
     setExtractionNotice(
       result.items.length === 0
         ? 'No new words from the supported frequency range were found for this level in this chapter.'
-        : result.eligibleCount > 50
-          ? `This chapter contains ${result.eligibleCount} level-appropriate words. We selected the most frequent ones first; keep the list focused before reading.`
+        : result.eligibleCount > result.items.length
+          ? `The frequency list found ${result.eligibleCount} words above the ${learnerLevel ?? 'selected'} level threshold. Showing ${result.items.length}, starting with the most frequent.`
           : null,
     );
     markChapterReady(chapterId);
