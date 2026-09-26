@@ -6,11 +6,13 @@ ChapterPrep supports English and French in this phase. The browser never downloa
 
 The `vocabulary_frequency` table holds the first 10,000 distinct normalized forms for each supported language. It is populated from the word-frequency CSVs in [orgtre/top-open-subtitles-sentences](https://github.com/orgtre/top-open-subtitles-sentences), based on OpenSubtitles2018. The source repository documents its data limitations: subtitles often contain translations and names, so Gemini is allowed to discard malformed tokens and proper names.
 
-The extraction function uses fixed initial frequency cutoffs: A1 300, A2 1,500, B1 2,500, B2 3,500, C1 7,000, and C2 10,000. It keeps only words occurring in the chapter strictly above the learner's cutoff, ranks the closest words first, and applies the 1–50 maximum selected in the UI. For example, an A1 chapter selects eligible words starting just above rank 300, then continues upward by frequency rank. This is a starting estimate, not a claim that CEFR defines exact vocabulary totals.
+The extraction function uses frequency cutoffs of A1 500, A2 1,500, B1 3,000, B2 6,000, C1 10,000, and C2 15,000. It keeps only words occurring in the chapter strictly above the learner's cutoff and ranks the closest words first. The indicative label saved for each word is assigned from its frequency rank, not estimated by Gemini: ranks 1–500 A1, 501–1,500 A2, 1,501–3,000 B1, 3,001–6,000 B2, 6,001–10,000 B2–C1, and 10,001–15,000 C1 (uncertain). No C2 band is defined yet, so words above 15,000 remain unclassified rather than being mixed into C1. These rank bands are working estimates, not official CEFR vocabulary boundaries.
+
+The current reference table only contains ranks 1–10,000 for each supported language. Therefore, the 10,001–15,000 C1 (uncertain) band and C2 learner cutoff cannot produce words until a larger, quality-reviewed frequency list is loaded. The migration expands the table's allowed rank range to 15,000 but does not add or download frequency data.
 
 ## Long chapters
 
-Canonical chapter text can contain up to 50,000 words. Token matching is performed in database batches. Gemini receives only the selected candidates and a sentence context capped at 480 characters for each candidate, never the full chapter. If more than 50 words are eligible, the review screen explains that the most frequent eligible words were prioritised.
+Canonical chapter text can contain up to 50,000 words. Token matching is performed in database batches. Gemini receives only the selected candidates and a sentence context capped at 480 characters for each candidate, never the full chapter. When the eligible pool is larger than the returned selection, the review screen shows the pool size and how many words were selected, ordered by frequency.
 
 ## Operations and licensing
 
