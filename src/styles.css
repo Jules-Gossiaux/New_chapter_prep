@@ -1506,6 +1506,25 @@ textarea::placeholder {
   line-height: 1.1;
   letter-spacing: 0.1em;
 }
+.book-cover.has-cover-image {
+  isolation: isolate;
+  color: #fff;
+}
+.book-cover.has-cover-image > span,
+.book-cover.has-cover-image > small {
+  display: none;
+}
+.book-cover > img {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.book-cover.has-cover-image::after {
+  content: none;
+}
 .book-cover b {
   font-size: 18px;
   letter-spacing: -0.04em;
@@ -1683,6 +1702,45 @@ textarea::placeholder {
 .chapter-process:disabled {
   cursor: wait;
   opacity: 0.65;
+}
+.chapter-reprocess {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--green);
+  background: transparent;
+}
+.chapter-reprocess .icon {
+  width: 14px;
+}
+.chapter-reprocess:hover {
+  background: var(--sage);
+}
+.chapter-read-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.chapter-read-toggle.is-read {
+  color: var(--green-deep);
+  border-color: var(--green);
+}
+.chapter-read-toggle .icon {
+  width: 13px;
 }
 .delete-action:disabled,
 .chapter-delete:disabled {
@@ -2100,7 +2158,7 @@ textarea::placeholder {
 }
 .search-box input {
   border: 0;
-  padding: 0;
+  padding: 0 3px;
   background: transparent;
   width: 120px;
   font-size: 11px;
@@ -2631,6 +2689,11 @@ textarea::placeholder {
   color: #fff;
 }
 .reader-end {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
   text-align: center;
   border-top: 1px solid var(--line);
   padding-top: 35px;
@@ -2641,8 +2704,19 @@ textarea::placeholder {
 }
 .reader-end .button {
   font-family: 'DM Sans';
-  font-size: 11px;
-  margin-top: 18px;
+  font-size: 12px;
+  margin-top: 0;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 .reader-aside {
   display: grid;
@@ -2802,6 +2876,10 @@ textarea::placeholder {
 .vocab-more:hover,
 .vocab-more:focus-visible {
   color: #ad563f;
+}
+.mini-word-add:hover,
+.mini-word-add:focus-visible {
+  color: var(--green);
 }
 .mini-word-remove:disabled,
 .vocab-more:disabled {
@@ -3728,7 +3806,9 @@ select {
     gap: 10px;
   }
   .chapter-card > .chapter-delete,
-  .chapter-card > .chapter-process {
+  .chapter-card > .chapter-process,
+  .chapter-card > .chapter-reprocess,
+  .chapter-card > .chapter-read-toggle {
     margin: 0 8px 10px;
   }
   .chapter-card > .chapter-delete:last-child {
@@ -3851,8 +3931,18 @@ select {
     flex: none;
   }
   .chapter-card > .chapter-delete,
-  .chapter-card > .chapter-process {
+  .chapter-card > .chapter-process,
+  .chapter-card > .chapter-reprocess,
+  .chapter-card > .chapter-read-toggle {
     font-size: 11px;
+  }
+  .reader-end {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .reader-end .button {
+    width: 100%;
+    justify-content: center;
   }
   .reader-top {
     grid-template-columns: 1fr;

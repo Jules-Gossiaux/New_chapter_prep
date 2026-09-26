@@ -30,6 +30,7 @@ export type ChapterPreview = {
   sourceText?: string;
   language?: string;
   learnerLevel?: string;
+  read?: boolean;
 };
 export type DemoBook = {
   id: string;
@@ -39,8 +40,18 @@ export type DemoBook = {
   level: string;
   progress: number;
   cover: string;
+  coverImage?: string;
+  coverPath?: string | null;
   chapters: ChapterPreview[];
 };
+
+export function calculateBookProgress(chapters: ChapterPreview[]) {
+  if (!chapters.length) return 0;
+  return Math.round(
+    (chapters.filter((chapter) => chapter.read).length / chapters.length) *
+      100,
+  );
+}
 
 export function sortChapterPreviews(chapters: ChapterPreview[]) {
   return [...chapters].sort((a, b) => a.number - b.number);

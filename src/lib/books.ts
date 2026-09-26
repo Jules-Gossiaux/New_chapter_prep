@@ -9,6 +9,7 @@ export type BackendBook = {
   learnerLevel: string;
   createdAt: string;
   lastOpenedAt: string;
+  coverPath: string | null;
 };
 
 export type BackendChapter = {
@@ -74,6 +75,7 @@ function mapBook(book: Record<string, unknown>): BackendBook {
     learnerLevel: String(book.learner_level),
     createdAt: String(book.created_at),
     lastOpenedAt: String(book.last_opened_at),
+    coverPath: book.cover_path ? String(book.cover_path) : null,
   };
 }
 
@@ -123,6 +125,98 @@ export async function listBooks() {
     .order('last_opened_at', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((book) => mapBook(book));
+}
+
+export async function listBackendChapterReadStatus(chapterIds: string[]) {
+  if (!chapterIds.length) return new Set<string>();
+  const { client } = await requireUser();
+  const { data, error } = await client
+    .from('reading_progress')
+    .select('chapter_id, completed')
+    .in('chapter_id', chapterIds);
+  if (error) throw error;
+  return new Set(
+    (data ?? [])
+      .filter((row) => row.completed)
+      .map((row) => String(row.chapter_id)),
+  );
+}
+
+export async function setBackendChapterRead(
+  chapterId: string,
+  completed: boolean,
+) {
+  const { client, user } = await requireUser();
+  const { data: existing, error: selectError } = await client
+    .from('reading_progress')
+    .select('chapter_id')
+    .eq('chapter_id', chapterId)
+    .maybeSingle();
+  if (selectError) throw selectError;
+
+  const result = existing
+    ? await client
+        .from('reading_progress')
+        .update({ completed, updated_at: new Date().toISOString() })
+        .eq('chapter_id', chapterId)
+    : await client
+        .from('reading_progress')
+        .insert({ user_id: user.id, chapter_id: chapterId, completed });
+  if (result.error) throw result.error;
+}
+
+export async function getBackendBookCoverUrl(coverPath: string | null) {
+  if (!coverPath) return null;
+  const { client } = await requireUser();
+  const { data, error } = await client.storage
+    .from('book-covers')
+    .createSignedUrl(coverPath, 60 * 60 * 24 * 7);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
+export async function uploadBackendBookCover(
+  bookId: string,
+  file: File,
+  previousPath: string | null,
+) {
+  const { client, user } = await requireUser();
+  const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+  if (!allowedTypes.has(file.type)) throw new Error('COVER_UNSUPPORTED_TYPE');
+  if (file.size > 5 * 1024 * 1024) throw new Error('COVER_TOO_LARGE');
+
+  const extension = file.type === 'image/jpeg' ? 'jpg' : file.type.split('/')[1];
+  const path = `${user.id}/${bookId}/${crypto.randomUUID()}.${extension}`;
+  const { error: uploadError } = await client.storage
+    .from('book-covers')
+    .upload(path, file, {
+      contentType: file.type,
+      cacheControl: '3600',
+      upsert: false,
+    });
+  if (uploadError) throw uploadError;
+
+  const { error: updateError } = await client
+    .from('books')
+    .update({ cover_path: path })
+    .eq('id', bookId);
+  if (updateError) {
+    await client.storage.from('book-covers').remove([path]);
+    throw updateError;
+  }
+
+  if (previousPath) {
+    const { error: removeError } = await client.storage
+      .from('book-covers')
+      .remove([previousPath]);
+    if (removeError) console.warn('Unable to remove previous book cover');
+  }
+
+  const { data: signed, error: signedError } = await client.storage
+    .from('book-covers')
+    .createSignedUrl(path, 60 * 60 * 24 * 7);
+  if (signedError) throw signedError;
+  return { path, url: signed.signedUrl };
 }
 
 export async function markBackendBookOpened(bookId: string) {
@@ -192,6 +286,12 @@ export async function updateBackendBook(
 
 export async function deleteBackendBook(bookId: string) {
   const { client } = await requireUser();
+  const { data: book, error: bookError } = await client
+    .from('books')
+    .select('cover_path')
+    .eq('id', bookId)
+    .maybeSingle();
+  if (bookError) throw bookError;
   const { data: chapters, error: chaptersError } = await client
     .from('chapters')
     .select('id')
@@ -217,6 +317,13 @@ export async function deleteBackendBook(bookId: string) {
     .maybeSingle();
   if (error) throw error;
   if (!data) throw new Error('BOOK_NOT_FOUND_OR_FORBIDDEN');
+
+  if (book?.cover_path) {
+    const { error: coverError } = await client.storage
+      .from('book-covers')
+      .remove([String(book.cover_path)]);
+    if (coverError) console.warn('Unable to remove deleted book cover');
+  }
 
   if (vocabularyEntryIds.length) {
     const { data: remainingLinks, error: remainingLinksError } = await client
@@ -470,6 +577,45 @@ export async function saveBackendVocabularyEntries(input: {
       .in('id', input.candidateIds);
     if (candidatesError) throw candidatesError;
   }
+}
+
+export async function clearBackendChapterVocabulary(chapterId: string) {
+  const { client, user } = await requireUser();
+  const { data: links, error: linksError } = await client
+    .from('chapter_vocabulary')
+    .select('vocabulary_entry_id')
+    .eq('chapter_id', chapterId);
+  if (linksError) throw linksError;
+
+  const entryIds = Array.from(
+    new Set((links ?? []).map((link) => String(link.vocabulary_entry_id))),
+  );
+  if (!entryIds.length) return;
+
+  const { error: deleteLinksError } = await client
+    .from('chapter_vocabulary')
+    .delete()
+    .eq('chapter_id', chapterId);
+  if (deleteLinksError) throw deleteLinksError;
+
+  const { data: remainingLinks, error: remainingLinksError } = await client
+    .from('chapter_vocabulary')
+    .select('vocabulary_entry_id')
+    .in('vocabulary_entry_id', entryIds);
+  if (remainingLinksError) throw remainingLinksError;
+
+  const stillLinked = new Set(
+    (remainingLinks ?? []).map((link) => String(link.vocabulary_entry_id)),
+  );
+  const orphanedIds = entryIds.filter((id) => !stillLinked.has(id));
+  if (!orphanedIds.length) return;
+
+  const { error: deleteEntriesError } = await client
+    .from('vocabulary_entries')
+    .delete()
+    .eq('user_id', user.id)
+    .in('id', orphanedIds);
+  if (deleteEntriesError) throw deleteEntriesError;
 }
 
 export async function deleteBackendVocabularyEntry(entryId: string) {
