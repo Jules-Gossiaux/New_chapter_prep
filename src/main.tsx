@@ -1558,13 +1558,34 @@ function PdfImportSetup({
               <span className="new-book-step">01 / 01</span>
             </div>
             <label className={`pdf-file-input ${file ? 'has-file' : ''}`}>
-              {book ? 'Choose file to add chapters' : 'Choose your book file'}
+              <span className="pdf-file-heading">
+                {book ? 'Add chapters from a file' : 'Choose your book file'}
+              </span>
               <input
                 type="file"
                 accept="application/pdf,.pdf,application/epub+zip,.epub"
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               />
-              <span>{file?.name ?? 'Choose a PDF or EPUB file'}</span>
+              <span className="pdf-file-picker-row">
+                <span className="pdf-file-icon">
+                  <Icon name="download" />
+                </span>
+                <span className="pdf-file-name">
+                  {file?.name ?? 'PDF or EPUB file'}
+                  <small>
+                    {file
+                      ? 'Ready to import'
+                      : 'Choose a file from your device'}
+                  </small>
+                </span>
+                <span className="pdf-file-browse">
+                  {file ? 'Change file' : 'Browse'}
+                </span>
+              </span>
+              <span className="pdf-file-hint">
+                PDF · EPUB <span aria-hidden="true">·</span> Text-based PDFs
+                only
+              </span>
             </label>
             {!book && (
               <label>
