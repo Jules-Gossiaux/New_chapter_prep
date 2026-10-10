@@ -17,3 +17,5 @@ Every word in the reader is also a lookup target. Prepared words retain the prim
 ## Boundaries
 
 Pasted text is first-class. In the frontend-only phase, TXT/EPUB/PDF parsing, real AI extraction, accounts, synchronization, and durable server persistence are represented as contracts or mocks. The UI must still preserve the original chapter text, allow review of suggestions, support the reader workflow, and make all unavailable behavior explicit.
+
+Creating a book starts with an explicit input choice: import a PDF/EPUB or create the book and paste chapter text manually. Import is highlighted as the recommended path, while the manual path remains equally available. The library's “Add a book” and “Add another book” actions both open this choice screen; the separate library import shortcut may still open the importer directly.

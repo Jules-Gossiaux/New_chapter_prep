@@ -701,16 +701,20 @@ function backendBookToDemo(
 
 function NewBook({
   go,
+  onImportBookFile,
   onCreate,
 }: {
   go: (view: View) => void;
+  onImportBookFile: () => void;
   onCreate: (input: {
     title: string;
     author: string;
     language: string;
     level: string;
+    startWithChapter: boolean;
   }) => Promise<void>;
 }) {
+  const [method, setMethod] = useState<'choose' | 'paste'>('choose');
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [language, setLanguage] = useState('French');
@@ -726,99 +730,163 @@ function NewBook({
         <div className="new-book-layout">
           <div className="new-book-copy">
             <span className="kicker">A NEW READING JOURNEY</span>
-            <h1>Give your next book a place to live.</h1>
+            <h1>
+              {method === 'choose'
+                ? 'How would you like to add your book?'
+                : 'Start with the book details.'}
+            </h1>
             <p>
-              Add the basics now. You can always update them later as your
-              reading takes shape.
+              {method === 'choose'
+                ? 'Import a complete book or paste the chapter text yourself. You can change your choice any time.'
+                : 'Create the book first, then paste your text into its first chapter.'}
             </p>
             <div className="new-book-tip">
               <Icon name="sparkle" />
               <span>
-                <b>Keep it simple.</b>
-                <small>Your chapter text comes next.</small>
+                <b>
+                  {method === 'choose'
+                    ? 'Your choice, your pace.'
+                    : 'Almost there.'}
+                </b>
+                <small>
+                  {method === 'choose'
+                    ? 'Both paths keep your original text intact.'
+                    : 'You can add more chapters whenever you like.'}
+                </small>
               </span>
             </div>
           </div>
-          <section className="new-book-card">
-            <div className="new-book-card-head">
-              <span className="kicker">BOOK DETAILS</span>
-              <span className="new-book-step">01 / 01</span>
-            </div>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                setError('');
-                setBusy(true);
-                void onCreate({ title, author, language, level })
-                  .catch((createError) =>
-                    setError(
-                      createError instanceof Error
-                        ? createError.message
-                        : 'Unable to create this book.',
-                    ),
-                  )
-                  .finally(() => setBusy(false));
-              }}
+          {method === 'choose' ? (
+            <section
+              className="new-book-methods"
+              aria-label="Choose book input method"
             >
-              <label>
-                Book title
-                <input
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  placeholder="e.g. The Little Prince"
-                  required
-                />
-              </label>
-              <label>
-                Author <span className="optional-label">optional</span>
-                <input
-                  value={author}
-                  onChange={(event) => setAuthor(event.target.value)}
-                  placeholder="e.g. Antoine de Saint-Exupéry"
-                />
-              </label>
-              <label>
-                Book language
-                <select
-                  value={language}
-                  onChange={(event) => setLanguage(event.target.value)}
+              <button
+                className="new-book-method new-book-method-featured"
+                onClick={onImportBookFile}
+              >
+                <span className="new-book-method-icon">
+                  <Icon name="download" />
+                </span>
+                <span className="new-book-method-copy">
+                  <small className="new-book-method-tag">RECOMMENDED</small>
+                  <b>Import a PDF or EPUB</b>
+                  <span>
+                    We’ll extract the text and split it into chapters.
+                  </span>
+                </span>
+                <Icon name="arrow" />
+              </button>
+              <button
+                className="new-book-method"
+                onClick={() => setMethod('paste')}
+              >
+                <span className="new-book-method-icon">
+                  <Icon name="plus" />
+                </span>
+                <span className="new-book-method-copy">
+                  <b>Paste chapter text</b>
+                  <span>
+                    Create the book, then paste text into your first chapter.
+                  </span>
+                </span>
+                <Icon name="arrow" />
+              </button>
+            </section>
+          ) : (
+            <section className="new-book-card">
+              <div className="new-book-card-head">
+                <button
+                  className="new-book-method-back"
+                  onClick={() => setMethod('choose')}
                 >
-                  <option>French</option>
-                  <option>English</option>
-                  <option>Spanish</option>
-                  <option>German</option>
-                  <option>Italian</option>
-                </select>
-              </label>
-              <label>
-                Your current level
-                <select
-                  value={level}
-                  onChange={(event) => setLevel(event.target.value)}
-                >
-                  <option>A1</option>
-                  <option>A2</option>
-                  <option>B1</option>
-                  <option>B2</option>
-                  <option>C1</option>
-                  <option>C2</option>
-                </select>
-              </label>
-              {error && (
-                <p className="form-error" role="alert">
-                  {error}
-                </p>
-              )}
-              <div className="new-book-actions">
-                <Button variant="outline" onClick={() => go('library')}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  {busy ? 'Creating…' : 'Create book'} <Icon name="arrow" />
-                </Button>
+                  <Icon name="back" /> Change input method
+                </button>
+                <span className="kicker">BOOK DETAILS · PASTE TEXT NEXT</span>
+                <span className="new-book-step">01 / 01</span>
               </div>
-            </form>
-          </section>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setError('');
+                  setBusy(true);
+                  void onCreate({
+                    title,
+                    author,
+                    language,
+                    level,
+                    startWithChapter: true,
+                  })
+                    .catch((createError) =>
+                      setError(
+                        createError instanceof Error
+                          ? createError.message
+                          : 'Unable to create this book.',
+                      ),
+                    )
+                    .finally(() => setBusy(false));
+                }}
+              >
+                <label>
+                  Book title
+                  <input
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    placeholder="e.g. The Little Prince"
+                    required
+                  />
+                </label>
+                <label>
+                  Author <span className="optional-label">optional</span>
+                  <input
+                    value={author}
+                    onChange={(event) => setAuthor(event.target.value)}
+                    placeholder="e.g. Antoine de Saint-Exupéry"
+                  />
+                </label>
+                <label>
+                  Book language
+                  <select
+                    value={language}
+                    onChange={(event) => setLanguage(event.target.value)}
+                  >
+                    <option>French</option>
+                    <option>English</option>
+                    <option>Spanish</option>
+                    <option>German</option>
+                    <option>Italian</option>
+                  </select>
+                </label>
+                <label>
+                  Your current level
+                  <select
+                    value={level}
+                    onChange={(event) => setLevel(event.target.value)}
+                  >
+                    <option>A1</option>
+                    <option>A2</option>
+                    <option>B1</option>
+                    <option>B2</option>
+                    <option>C1</option>
+                    <option>C2</option>
+                  </select>
+                </label>
+                {error && (
+                  <p className="form-error" role="alert">
+                    {error}
+                  </p>
+                )}
+                <div className="new-book-actions">
+                  <Button variant="outline" onClick={() => go('library')}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">
+                    {busy ? 'Creating…' : 'Create book'} <Icon name="arrow" />
+                  </Button>
+                </div>
+              </form>
+            </section>
+          )}
         </div>
       </main>
     </AppShell>
@@ -931,12 +999,12 @@ function Library({
                 }}
               />
             ))}
-            <button className="add-book-card" onClick={onImportBookFile}>
+            <button className="add-book-card" onClick={() => go('newBook')}>
               <span>
-                <Icon name="download" />
+                <Icon name="plus" />
               </span>
-              <b>Import a book</b>
-              <small>PDF or EPUB · chapters created for you</small>
+              <b>Add another book</b>
+              <small>Start a new reading journey</small>
             </button>
           </div>
         </section>
@@ -3844,6 +3912,7 @@ function App() {
     author: string;
     language: string;
     level: string;
+    startWithChapter: boolean;
   }) => {
     const book = isSupabaseConfigured
       ? backendBookToDemo(
@@ -3867,7 +3936,8 @@ function App() {
         };
     setBooks((old) => [...old, book]);
     setSelectedBook(book);
-    go('book');
+    setSelectedChapter(null);
+    go(input.startWithChapter ? 'chapter' : 'book');
   };
 
   const createChapter = async (input: {
@@ -4423,7 +4493,17 @@ function App() {
           userLabel={userLabel}
         />
       );
-    if (view === 'newBook') return <NewBook go={go} onCreate={createBook} />;
+    if (view === 'newBook')
+      return (
+        <NewBook
+          go={go}
+          onImportBookFile={() => {
+            setPdfImportBookId(null);
+            go('pdfImport');
+          }}
+          onCreate={createBook}
+        />
+      );
     if (view === 'pdfImport')
       return (
         <PdfImportSetup

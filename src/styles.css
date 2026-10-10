@@ -2527,6 +2527,95 @@ textarea::placeholder {
   padding: 30px;
   box-shadow: 0 14px 30px #25483809;
 }
+.new-book-methods {
+  display: grid;
+  gap: 14px;
+  align-self: start;
+  margin-top: 18px;
+}
+.new-book-method {
+  display: grid;
+  grid-template-columns: 48px 1fr 20px;
+  align-items: center;
+  gap: 15px;
+  width: 100%;
+  min-height: 112px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--white);
+  color: var(--ink);
+  text-align: left;
+  box-shadow: 0 12px 30px rgb(29 53 42 / 5%);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+.new-book-method:hover {
+  transform: translateY(-2px);
+  border-color: #7ba38d;
+  box-shadow: 0 16px 34px rgb(29 53 42 / 10%);
+}
+.new-book-method-featured {
+  border-color: var(--green);
+  background: linear-gradient(135deg, #edf5ef, #fff 72%);
+}
+.new-book-method-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 13px;
+  background: #dcebe0;
+  color: var(--green);
+}
+.new-book-method-featured .new-book-method-icon {
+  background: var(--green);
+  color: white;
+}
+.new-book-method-copy {
+  display: grid;
+  gap: 5px;
+}
+.new-book-method-copy b {
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+.new-book-method-copy > span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.new-book-method-tag {
+  color: var(--green);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+}
+.new-book-method > .icon:last-child {
+  color: var(--green);
+  transition: transform 160ms ease;
+}
+.new-book-method:hover > .icon:last-child {
+  transform: translateX(3px);
+}
+.new-book-method-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 11px;
+}
+.new-book-method-back .icon {
+  width: 14px;
+}
+.new-book-method-back:hover {
+  color: var(--green);
+}
 .new-book-card form {
   gap: 24px;
 }
@@ -3845,6 +3934,22 @@ select {
   .new-book-card {
     padding: 20px 16px;
   }
+  .new-book-method {
+    grid-template-columns: 40px 1fr 16px;
+    gap: 11px;
+    min-height: 100px;
+    padding: 15px;
+  }
+  .new-book-method-icon {
+    width: 40px;
+    height: 40px;
+  }
+  .new-book-method-copy b {
+    font-size: 14px;
+  }
+  .new-book-method-copy > span {
+    font-size: 11px;
+  }
   .new-book-actions,
   .setup-actions,
   .editor-modal-actions {
@@ -4101,6 +4206,7 @@ html[data-theme='dark'] .app-header {
 
 html[data-theme='dark'] .setup-card,
 html[data-theme='dark'] .new-book-card,
+html[data-theme='dark'] .new-book-method,
 html[data-theme='dark'] .editor-modal,
 html[data-theme='dark'] .chapter-card,
 html[data-theme='dark'] .continue-card,
@@ -4117,6 +4223,22 @@ html[data-theme='dark'] .search-box,
 html[data-theme='dark'] .account-menu {
   background: #1b2822;
   border-color: #3a5145;
+}
+html[data-theme='dark'] .new-book-method-featured {
+  background: linear-gradient(135deg, #20372b, #19251f 76%);
+  border-color: #6ca987;
+}
+html[data-theme='dark'] .new-book-method-icon {
+  background: #294438;
+  color: #9be0b5;
+}
+html[data-theme='dark'] .new-book-method-featured .new-book-method-icon {
+  background: #64bc8d;
+  color: #092016;
+}
+html[data-theme='dark'] .new-book-method-tag,
+html[data-theme='dark'] .new-book-method > .icon:last-child {
+  color: #8bd5a8;
 }
 
 html[data-theme='dark'] .chapter-card:hover,
