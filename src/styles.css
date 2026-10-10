@@ -1679,8 +1679,53 @@ textarea::placeholder {
 }
 .book-actions {
   display: grid;
-  justify-items: end;
-  gap: 10px;
+  align-self: center;
+  width: 242px;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--white);
+  box-shadow: 0 12px 32px rgb(18 39 31 / 5%);
+}
+.book-primary-actions {
+  display: grid;
+  gap: 8px;
+}
+.book-primary-actions .button {
+  width: 100%;
+  min-height: 44px;
+  justify-content: center;
+  padding-inline: 10px;
+  font-size: 12px;
+}
+.book-management-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.book-management-actions .delete-action {
+  min-height: 34px;
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 11px;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+.book-management-actions .delete-action:hover {
+  background: var(--sage);
+  color: var(--ink);
+  text-decoration: none;
+}
+.book-management-actions .cover-upload-action {
+  grid-column: 1 / -1;
+}
+.book-management-actions .danger-action,
+.book-management-actions .danger-action:hover {
+  color: #c46550;
 }
 .delete-action,
 .chapter-delete {
@@ -3366,23 +3411,29 @@ textarea::placeholder {
     width: 100%;
   }
   .book-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-items: initial;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 8px 14px;
+    grid-template-columns: 1fr 1fr;
+    align-self: stretch;
+    gap: 12px;
+    padding: 12px;
   }
-  .book-actions .button {
-    width: auto;
+  .book-primary-actions {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr 1fr;
+  }
+  .book-primary-actions .button:first-child {
+    grid-column: 1 / -1;
+  }
+  .book-primary-actions .button {
     min-width: 0;
-    flex: 1 1 calc(50% - 7px);
-    font-size: 13px;
-    padding-left: 10px;
-    padding-right: 10px;
+    font-size: 12px;
+    padding-inline: 8px;
   }
-  .book-actions .delete-action {
-    flex: 0 0 auto;
+  .book-management-actions {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+  .book-management-actions .cover-upload-action {
+    grid-column: auto;
   }
   .chapter-heading {
     margin-top: 35px;

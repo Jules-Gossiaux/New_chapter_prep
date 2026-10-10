@@ -931,12 +931,12 @@ function Library({
                 }}
               />
             ))}
-            <button className="add-book-card" onClick={() => go('newBook')}>
+            <button className="add-book-card" onClick={onImportBookFile}>
               <span>
-                <Icon name="plus" />
+                <Icon name="download" />
               </span>
-              <b>Add another book</b>
-              <small>Start a new reading journey</small>
+              <b>Import a book</b>
+              <small>PDF or EPUB · chapters created for you</small>
             </button>
           </div>
         </section>
@@ -1147,26 +1147,17 @@ function BookDetail({
             </div>
           </div>
           <div className="book-actions">
-            <Button onClick={onImportBookFile}>
-              <Icon name="download" /> Import PDF / EPUB
-            </Button>
-            <Button variant="outline" onClick={onAddChapter}>
-              <Icon name="plus" /> Add chapter manually
-            </Button>
-            <Button variant="soft" onClick={() => setActiveTab('vocabulary')}>
-              <Icon name="download" /> Export vocabulary
-            </Button>
-            <button
-              className="delete-action cover-upload-action"
-              onClick={() => coverInputRef.current?.click()}
-              disabled={coverBusy}
-            >
-              {coverBusy
-                ? 'Uploading cover…'
-                : book.coverImage
-                  ? 'Change cover photo'
-                  : 'Add cover photo'}
-            </button>
+            <div className="book-primary-actions">
+              <Button onClick={onImportBookFile}>
+                <Icon name="download" /> Import PDF / EPUB
+              </Button>
+              <Button variant="outline" onClick={onAddChapter}>
+                <Icon name="plus" /> Add chapter manually
+              </Button>
+              <Button variant="soft" onClick={() => setActiveTab('vocabulary')}>
+                <Icon name="download" /> Export vocabulary
+              </Button>
+            </div>
             <input
               ref={coverInputRef}
               className="visually-hidden"
@@ -1178,19 +1169,32 @@ function BookDetail({
               }}
               aria-label="Choose a book cover image"
             />
-            <button
-              className="delete-action"
-              onClick={() => setEditingBook(true)}
-            >
-              Edit book
-            </button>
-            <button
-              className="delete-action"
-              onClick={removeBook}
-              disabled={deleting === book.id}
-            >
-              {deleting === book.id ? 'Deleting…' : 'Delete book'}
-            </button>
+            <div className="book-management-actions">
+              <button
+                className="delete-action cover-upload-action"
+                onClick={() => coverInputRef.current?.click()}
+                disabled={coverBusy}
+              >
+                {coverBusy
+                  ? 'Uploading cover…'
+                  : book.coverImage
+                    ? 'Change cover photo'
+                    : 'Add cover photo'}
+              </button>
+              <button
+                className="delete-action"
+                onClick={() => setEditingBook(true)}
+              >
+                Edit book
+              </button>
+              <button
+                className="delete-action danger-action"
+                onClick={removeBook}
+                disabled={deleting === book.id}
+              >
+                {deleting === book.id ? 'Deleting…' : 'Delete book'}
+              </button>
+            </div>
           </div>
         </section>
         <div className="book-tabs" role="tablist" aria-label="Book sections">
