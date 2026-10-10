@@ -848,9 +848,20 @@ select:focus-visible {
   background: transparent;
 }
 .pdf-file-input > span {
+  display: block;
+  min-height: 42px;
+  padding: 12px 14px;
+  border: 1px dashed var(--line);
+  border-radius: 9px;
+  background: var(--surface-soft);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 400;
+}
+.pdf-file-input.has-file > span {
+  border-style: solid;
+  border-color: var(--green);
+  color: var(--ink);
 }
 .pdf-range-control output {
   color: var(--green);
