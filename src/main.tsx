@@ -12,11 +12,7 @@ import {
   type DemoBook,
   type View,
 } from './app-model';
-import {
-  countWords,
-  MAX_CHAPTER_WORDS,
-  MAX_PREPARED_WORDS,
-} from './domain';
+import { countWords, MAX_CHAPTER_WORDS, MAX_PREPARED_WORDS } from './domain';
 import {
   deleteAccount,
   getCurrentUser,
@@ -27,6 +23,7 @@ import {
 import {
   createBackendBook,
   createBackendChapter,
+  createBackendChapters,
   clearBackendChapterVocabulary,
   deleteBackendBook,
   deleteBackendChapter,
@@ -704,16 +701,20 @@ function backendBookToDemo(
 
 function NewBook({
   go,
+  onImportBookFile,
   onCreate,
 }: {
   go: (view: View) => void;
+  onImportBookFile: () => void;
   onCreate: (input: {
     title: string;
     author: string;
     language: string;
     level: string;
+    startWithChapter: boolean;
   }) => Promise<void>;
 }) {
+  const [method, setMethod] = useState<'choose' | 'paste'>('choose');
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [language, setLanguage] = useState('French');
@@ -729,99 +730,163 @@ function NewBook({
         <div className="new-book-layout">
           <div className="new-book-copy">
             <span className="kicker">A NEW READING JOURNEY</span>
-            <h1>Give your next book a place to live.</h1>
+            <h1>
+              {method === 'choose'
+                ? 'How would you like to add your book?'
+                : 'Start with the book details.'}
+            </h1>
             <p>
-              Add the basics now. You can always update them later as your
-              reading takes shape.
+              {method === 'choose'
+                ? 'Import a complete book or paste the chapter text yourself. You can change your choice any time.'
+                : 'Create the book first, then paste your text into its first chapter.'}
             </p>
             <div className="new-book-tip">
               <Icon name="sparkle" />
               <span>
-                <b>Keep it simple.</b>
-                <small>Your chapter text comes next.</small>
+                <b>
+                  {method === 'choose'
+                    ? 'Your choice, your pace.'
+                    : 'Almost there.'}
+                </b>
+                <small>
+                  {method === 'choose'
+                    ? 'Both paths keep your original text intact.'
+                    : 'You can add more chapters whenever you like.'}
+                </small>
               </span>
             </div>
           </div>
-          <section className="new-book-card">
-            <div className="new-book-card-head">
-              <span className="kicker">BOOK DETAILS</span>
-              <span className="new-book-step">01 / 01</span>
-            </div>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                setError('');
-                setBusy(true);
-                void onCreate({ title, author, language, level })
-                  .catch((createError) =>
-                    setError(
-                      createError instanceof Error
-                        ? createError.message
-                        : 'Unable to create this book.',
-                    ),
-                  )
-                  .finally(() => setBusy(false));
-              }}
+          {method === 'choose' ? (
+            <section
+              className="new-book-methods"
+              aria-label="Choose book input method"
             >
-              <label>
-                Book title
-                <input
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  placeholder="e.g. The Little Prince"
-                  required
-                />
-              </label>
-              <label>
-                Author <span className="optional-label">optional</span>
-                <input
-                  value={author}
-                  onChange={(event) => setAuthor(event.target.value)}
-                  placeholder="e.g. Antoine de Saint-Exupéry"
-                />
-              </label>
-              <label>
-                Book language
-                <select
-                  value={language}
-                  onChange={(event) => setLanguage(event.target.value)}
+              <button
+                className="new-book-method new-book-method-featured"
+                onClick={onImportBookFile}
+              >
+                <span className="new-book-method-icon">
+                  <Icon name="download" />
+                </span>
+                <span className="new-book-method-copy">
+                  <small className="new-book-method-tag">RECOMMENDED</small>
+                  <b>Import a PDF or EPUB</b>
+                  <span>
+                    We’ll extract the text and split it into chapters.
+                  </span>
+                </span>
+                <Icon name="arrow" />
+              </button>
+              <button
+                className="new-book-method"
+                onClick={() => setMethod('paste')}
+              >
+                <span className="new-book-method-icon">
+                  <Icon name="plus" />
+                </span>
+                <span className="new-book-method-copy">
+                  <b>Paste chapter text</b>
+                  <span>
+                    Create the book, then paste text into your first chapter.
+                  </span>
+                </span>
+                <Icon name="arrow" />
+              </button>
+            </section>
+          ) : (
+            <section className="new-book-card">
+              <div className="new-book-card-head">
+                <button
+                  className="new-book-method-back"
+                  onClick={() => setMethod('choose')}
                 >
-                  <option>French</option>
-                  <option>English</option>
-                  <option>Spanish</option>
-                  <option>German</option>
-                  <option>Italian</option>
-                </select>
-              </label>
-              <label>
-                Your current level
-                <select
-                  value={level}
-                  onChange={(event) => setLevel(event.target.value)}
-                >
-                  <option>A1</option>
-                  <option>A2</option>
-                  <option>B1</option>
-                  <option>B2</option>
-                  <option>C1</option>
-                  <option>C2</option>
-                </select>
-              </label>
-              {error && (
-                <p className="form-error" role="alert">
-                  {error}
-                </p>
-              )}
-              <div className="new-book-actions">
-                <Button variant="outline" onClick={() => go('library')}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  {busy ? 'Creating…' : 'Create book'} <Icon name="arrow" />
-                </Button>
+                  <Icon name="back" /> Change input method
+                </button>
+                <span className="kicker">BOOK DETAILS · PASTE TEXT NEXT</span>
+                <span className="new-book-step">01 / 01</span>
               </div>
-            </form>
-          </section>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setError('');
+                  setBusy(true);
+                  void onCreate({
+                    title,
+                    author,
+                    language,
+                    level,
+                    startWithChapter: true,
+                  })
+                    .catch((createError) =>
+                      setError(
+                        createError instanceof Error
+                          ? createError.message
+                          : 'Unable to create this book.',
+                      ),
+                    )
+                    .finally(() => setBusy(false));
+                }}
+              >
+                <label>
+                  Book title
+                  <input
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    placeholder="e.g. The Little Prince"
+                    required
+                  />
+                </label>
+                <label>
+                  Author <span className="optional-label">optional</span>
+                  <input
+                    value={author}
+                    onChange={(event) => setAuthor(event.target.value)}
+                    placeholder="e.g. Antoine de Saint-Exupéry"
+                  />
+                </label>
+                <label>
+                  Book language
+                  <select
+                    value={language}
+                    onChange={(event) => setLanguage(event.target.value)}
+                  >
+                    <option>French</option>
+                    <option>English</option>
+                    <option>Spanish</option>
+                    <option>German</option>
+                    <option>Italian</option>
+                  </select>
+                </label>
+                <label>
+                  Your current level
+                  <select
+                    value={level}
+                    onChange={(event) => setLevel(event.target.value)}
+                  >
+                    <option>A1</option>
+                    <option>A2</option>
+                    <option>B1</option>
+                    <option>B2</option>
+                    <option>C1</option>
+                    <option>C2</option>
+                  </select>
+                </label>
+                {error && (
+                  <p className="form-error" role="alert">
+                    {error}
+                  </p>
+                )}
+                <div className="new-book-actions">
+                  <Button variant="outline" onClick={() => go('library')}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">
+                    {busy ? 'Creating…' : 'Create book'} <Icon name="arrow" />
+                  </Button>
+                </div>
+              </form>
+            </section>
+          )}
         </div>
       </main>
     </AppShell>
@@ -830,11 +895,13 @@ function NewBook({
 
 function Library({
   go,
+  onImportBookFile,
   books,
   selectBook,
   userLabel,
 }: {
   go: (view: View) => void;
+  onImportBookFile: () => void;
   books: DemoBook[];
   selectBook: (book: DemoBook) => void;
   userLabel?: string | null;
@@ -855,10 +922,10 @@ function Library({
             <p>What story are you stepping into today?</p>
           </div>
           <div className="library-intro-actions">
-            <Button variant="outline" onClick={() => go('pdfImport')}>
+            <Button onClick={onImportBookFile}>
               <Icon name="download" /> Import PDF / EPUB
             </Button>
-            <Button onClick={() => go('newBook')}>
+            <Button variant="outline" onClick={() => go('newBook')}>
               <Icon name="plus" /> Add a book
             </Button>
           </div>
@@ -868,7 +935,9 @@ function Library({
             <div
               className={`continue-cover book-cover cover-${currentBook.cover} ${currentBook.coverImage ? 'has-cover-image' : ''}`}
             >
-              {currentBook.coverImage && <img src={currentBook.coverImage} alt="" />}
+              {currentBook.coverImage && (
+                <img src={currentBook.coverImage} alt="" />
+              )}
               <span>{currentBook.title}</span>
             </div>
             <div className="continue-copy">
@@ -982,6 +1051,7 @@ function BookCard({ book, onClick }: { book: DemoBook; onClick: () => void }) {
 function BookDetail({
   book,
   go,
+  onImportBookFile,
   selectChapter,
   onDeleteBook,
   onDeleteChapter,
@@ -998,6 +1068,7 @@ function BookDetail({
 }: {
   book: DemoBook;
   go: (view: View) => void;
+  onImportBookFile: () => void;
   selectChapter: (chapter: DemoBook['chapters'][number]) => Promise<void>;
   onDeleteBook: (book: DemoBook) => Promise<void>;
   onDeleteChapter: (chapter: DemoBook['chapters'][number]) => Promise<void>;
@@ -1097,7 +1168,8 @@ function BookDetail({
       await onUploadCover(book, file);
     } catch (uploadError) {
       setError(
-        uploadError instanceof Error && uploadError.message === 'COVER_TOO_LARGE'
+        uploadError instanceof Error &&
+          uploadError.message === 'COVER_TOO_LARGE'
           ? 'Choose a cover image smaller than 5 MB.'
           : uploadError instanceof Error &&
               uploadError.message === 'COVER_UNSUPPORTED_TYPE'
@@ -1143,23 +1215,17 @@ function BookDetail({
             </div>
           </div>
           <div className="book-actions">
-            <Button onClick={onAddChapter}>
-              <Icon name="plus" /> Add chapter
-            </Button>
-            <Button variant="soft" onClick={() => setActiveTab('vocabulary')}>
-              <Icon name="download" /> Export vocabulary
-            </Button>
-            <button
-              className="delete-action cover-upload-action"
-              onClick={() => coverInputRef.current?.click()}
-              disabled={coverBusy}
-            >
-              {coverBusy
-                ? 'Uploading cover…'
-                : book.coverImage
-                  ? 'Change cover photo'
-                  : 'Add cover photo'}
-            </button>
+            <div className="book-primary-actions">
+              <Button onClick={onImportBookFile}>
+                <Icon name="download" /> Import PDF / EPUB
+              </Button>
+              <Button variant="outline" onClick={onAddChapter}>
+                <Icon name="plus" /> Add chapter manually
+              </Button>
+              <Button variant="soft" onClick={() => setActiveTab('vocabulary')}>
+                <Icon name="download" /> Export vocabulary
+              </Button>
+            </div>
             <input
               ref={coverInputRef}
               className="visually-hidden"
@@ -1171,22 +1237,32 @@ function BookDetail({
               }}
               aria-label="Choose a book cover image"
             />
-            <button className="delete-action" onClick={() => go('pdfImport')}>
-              Import PDF / EPUB
-            </button>
-            <button
-              className="delete-action"
-              onClick={() => setEditingBook(true)}
-            >
-              Edit book
-            </button>
-            <button
-              className="delete-action"
-              onClick={removeBook}
-              disabled={deleting === book.id}
-            >
-              {deleting === book.id ? 'Deleting…' : 'Delete book'}
-            </button>
+            <div className="book-management-actions">
+              <button
+                className="delete-action cover-upload-action"
+                onClick={() => coverInputRef.current?.click()}
+                disabled={coverBusy}
+              >
+                {coverBusy
+                  ? 'Uploading cover…'
+                  : book.coverImage
+                    ? 'Change cover photo'
+                    : 'Add cover photo'}
+              </button>
+              <button
+                className="delete-action"
+                onClick={() => setEditingBook(true)}
+              >
+                Edit book
+              </button>
+              <button
+                className="delete-action danger-action"
+                onClick={removeBook}
+                disabled={deleting === book.id}
+              >
+                {deleting === book.id ? 'Deleting…' : 'Delete book'}
+              </button>
+            </div>
           </div>
         </section>
         <div className="book-tabs" role="tablist" aria-label="Book sections">
@@ -1284,10 +1360,14 @@ function BookDetail({
                     className={`chapter-read-toggle ${chapter.read ? 'is-read' : ''}`}
                     onClick={() =>
                       void onSetChapterRead(chapter, !chapter.read).catch(() =>
-                        setError('Unable to update reading status. Please retry.'),
+                        setError(
+                          'Unable to update reading status. Please retry.',
+                        ),
                       )
                     }
-                    aria-label={chapter.read ? 'Mark as unread' : 'Mark as read'}
+                    aria-label={
+                      chapter.read ? 'Mark as unread' : 'Mark as read'
+                    }
                     title={chapter.read ? 'Mark as unread' : 'Mark as read'}
                   >
                     {chapter.read ? <Icon name="check" /> : 'Mark read'}
@@ -1348,22 +1428,25 @@ function BookDetail({
 function PdfImportSetup({
   go,
   onImport,
+  book,
 }: {
   go: (view: View) => void;
+  book?: DemoBook;
   onImport: (input: {
     title: string;
     author: string;
     language: string;
     level: string;
     chapters: ImportedPdfChapter[];
+    bookId?: string;
   }) => Promise<void>;
 }) {
   const [file, setFile] = useState<File | null>(null);
-  const [title, setTitle] = useState('');
-  const [author, setAuthor] = useState('');
-  const [language, setLanguage] = useState('French');
+  const [title, setTitle] = useState(book?.title ?? '');
+  const [author, setAuthor] = useState(book?.author ?? '');
+  const [language, setLanguage] = useState(book?.language ?? 'French');
   const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
-  const [level, setLevel] = useState('B1');
+  const [level, setLevel] = useState(book?.level ?? 'B1');
   const [targetWords, setTargetWords] = useState(1000);
   const [text, setText] = useState('');
   const [error, setError] = useState('');
@@ -1381,7 +1464,7 @@ function PdfImportSetup({
       return;
     }
     let active = true;
-    setTitle(file.name.replace(/\.(?:pdf|epub)$/iu, ''));
+    if (!book) setTitle(file.name.replace(/\.(?:pdf|epub)$/iu, ''));
     setReading(true);
     setError('');
     const extractBookText = file.name.toLowerCase().endsWith('.epub')
@@ -1412,12 +1495,19 @@ function PdfImportSetup({
     return () => {
       active = false;
     };
-  }, [file]);
+  }, [file, book]);
 
   const submit = () => {
     setBusy(true);
     setError('');
-    void onImport({ title, author, language, level, chapters })
+    void onImport({
+      title,
+      author,
+      language,
+      level,
+      chapters,
+      bookId: book?.id,
+    })
       .catch((importError) =>
         setError(
           importError instanceof Error
@@ -1431,16 +1521,26 @@ function PdfImportSetup({
   return (
     <AppShell view="pdfImport" go={go}>
       <main className="content narrow new-book-page">
-        <button className="back-link app-back" onClick={() => go('library')}>
-          <Icon name="back" /> Back to library
+        <button
+          className="back-link app-back"
+          onClick={() => go(book ? 'book' : 'library')}
+        >
+          <Icon name="back" />{' '}
+          {book ? `Back to ${book.title}` : 'Back to library'}
         </button>
         <div className="new-book-layout">
           <div className="new-book-copy">
-            <span className="kicker">A NEW READING JOURNEY</span>
-            <h1>Make room for your book.</h1>
+            <span className="kicker">
+              {book ? 'ADD TO YOUR BOOK' : 'START WITH YOUR BOOK'}
+            </span>
+            <h1>
+              {book ? `Add chapters to ${book.title}.` : 'Import your book.'}
+            </h1>
             <p>
-              Import a text-based PDF or EPUB and we’ll create its chapters for
-              you. You can process each chapter when you’re ready.
+              {book
+                ? 'Choose a text-based PDF or EPUB. We’ll add its contents as chapters to this book.'
+                : 'Choose a text-based PDF or EPUB and we’ll create the book and its chapters for you.'}{' '}
+              You can prepare each chapter when you’re ready.
             </p>
             <div className="new-book-tip">
               <Icon name="sparkle" />
@@ -1452,37 +1552,64 @@ function PdfImportSetup({
           </div>
           <section className="new-book-card pdf-import-page-card">
             <div className="new-book-card-head">
-              <span className="kicker">BOOK DETAILS</span>
+              <span className="kicker">
+                {book ? 'CHAPTER IMPORT' : 'BOOK DETAILS'}
+              </span>
               <span className="new-book-step">01 / 01</span>
             </div>
-            <label className="pdf-file-input">
-              Book file
+            <label className={`pdf-file-input ${file ? 'has-file' : ''}`}>
+              <span className="pdf-file-heading">
+                {book ? 'Add chapters from a file' : 'Choose your book file'}
+              </span>
               <input
                 type="file"
                 accept="application/pdf,.pdf,application/epub+zip,.epub"
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               />
-              <span>{file?.name ?? 'Choose a PDF or EPUB file'}</span>
+              <span className="pdf-file-picker-row">
+                <span className="pdf-file-icon">
+                  <Icon name="download" />
+                </span>
+                <span className="pdf-file-name">
+                  {file?.name ?? 'PDF or EPUB file'}
+                  <small>
+                    {file
+                      ? 'Ready to import'
+                      : 'Choose a file from your device'}
+                  </small>
+                </span>
+                <span className="pdf-file-browse">
+                  {file ? 'Change file' : 'Browse'}
+                </span>
+              </span>
+              <span className="pdf-file-hint">
+                PDF · EPUB <span aria-hidden="true">·</span> Text-based PDFs
+                only
+              </span>
             </label>
+            {!book && (
+              <label>
+                Book title
+                <input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="PDF filename"
+                  required
+                />
+              </label>
+            )}
+            {!book && (
+              <label>
+                Author <span className="optional-label">optional</span>
+                <input
+                  value={author}
+                  onChange={(event) => setAuthor(event.target.value)}
+                  placeholder="e.g. Antoine de Saint-Exupéry"
+                />
+              </label>
+            )}
             <label>
-              Book title
-              <input
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder="PDF filename"
-                required
-              />
-            </label>
-            <label>
-              Author <span className="optional-label">optional</span>
-              <input
-                value={author}
-                onChange={(event) => setAuthor(event.target.value)}
-                placeholder="e.g. Antoine de Saint-Exupéry"
-              />
-            </label>
-            <label>
-              Book language
+              Chapter language
               <select
                 value={language}
                 onChange={(event) => setLanguage(event.target.value)}
@@ -1499,7 +1626,7 @@ function PdfImportSetup({
               </p>
             )}
             <label>
-              Your current level
+              Chapter language level
               <select
                 value={level}
                 onChange={(event) => setLevel(event.target.value)}
@@ -1546,12 +1673,19 @@ function PdfImportSetup({
               </p>
             )}
             <div className="new-book-actions">
-              <Button variant="outline" onClick={() => go('library')}>
+              <Button
+                variant="outline"
+                onClick={() => go(book ? 'book' : 'library')}
+              >
                 Cancel
               </Button>
               <Button
                 disabled={
-                  !file || !title.trim() || !chapters.length || reading || busy
+                  !file ||
+                  (!book && !title.trim()) ||
+                  !chapters.length ||
+                  reading ||
+                  busy
                 }
                 onClick={submit}
               >
@@ -2566,7 +2700,9 @@ function Reader({
                   <Button
                     className="full-button"
                     variant={activeIsSaved ? 'soft' : 'primary'}
-                    disabled={savingWord || removingWordId === activeSavedEntry?.id}
+                    disabled={
+                      savingWord || removingWordId === activeSavedEntry?.id
+                    }
                     aria-label={
                       activeIsSaved
                         ? `Remove ${active.word} from vocabulary`
@@ -2757,7 +2893,9 @@ function Reader({
                     </Button>
                     <Button
                       variant={activeIsSaved ? 'soft' : 'primary'}
-                      disabled={savingWord || removingWordId === activeSavedEntry?.id}
+                      disabled={
+                        savingWord || removingWordId === activeSavedEntry?.id
+                      }
                       aria-label={
                         activeIsSaved
                           ? `Remove ${active.word} from vocabulary`
@@ -3541,6 +3679,7 @@ function App() {
   const [selectedBook, setSelectedBook] = useState<DemoBook | null>(
     isSupabaseConfigured ? null : demoBooks[0],
   );
+  const [pdfImportBookId, setPdfImportBookId] = useState<string | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<
     DemoBook['chapters'][number] | null
   >(null);
@@ -3662,9 +3801,7 @@ function App() {
 
   const removeVocabularyWord = async (entry: SavedVocabularyItem) => {
     if (!isSupabaseConfigured) {
-      setVocabularyEntries((old) =>
-        old.filter((word) => word.id !== entry.id),
-      );
+      setVocabularyEntries((old) => old.filter((word) => word.id !== entry.id));
       setSaved((old) => {
         const next = new Set(old);
         next.delete(entry.word);
@@ -3720,11 +3857,7 @@ function App() {
         const coverImage = await getBackendBookCoverUrl(book.coverPath).catch(
           () => null,
         );
-        return backendBookToDemo(
-          book,
-          chapters,
-          coverImage ?? undefined,
-        );
+        return backendBookToDemo(book, chapters, coverImage ?? undefined);
       }),
     );
     setBooks(loadedBooks);
@@ -3800,6 +3933,7 @@ function App() {
     author: string;
     language: string;
     level: string;
+    startWithChapter: boolean;
   }) => {
     const book = isSupabaseConfigured
       ? backendBookToDemo(
@@ -3823,7 +3957,8 @@ function App() {
         };
     setBooks((old) => [...old, book]);
     setSelectedBook(book);
-    go('book');
+    setSelectedChapter(null);
+    go(input.startWithChapter ? 'chapter' : 'book');
   };
 
   const createChapter = async (input: {
@@ -3890,77 +4025,103 @@ function App() {
     language: string;
     level: string;
     chapters: ImportedPdfChapter[];
+    bookId?: string;
   }) => {
-    const book = isSupabaseConfigured
-      ? backendBookToDemo(
-          await createBackendBook({
-            title: input.title,
-            author: input.author,
-            targetLanguage: input.language,
-            learnerLevel: input.level,
-          }),
-          [],
-        )
-      : {
-          id: `book-${Date.now()}`,
-          title: input.title.trim() || 'Imported book',
-          author: input.author.trim() || 'Unknown author',
-          language: input.language,
-          level: input.level,
-          progress: 0,
-          cover: 'custom',
-          chapters: [],
-        };
-    let nextBook = book;
-
-    for (const importedChapter of input.chapters) {
-      const nextNumber = nextAvailableChapterNumber(nextBook.chapters);
-      const chapter = isSupabaseConfigured
-        ? await createBackendChapter({
-            bookId: nextBook.id,
-            number: nextNumber,
-            title: importedChapter.title,
-            sourceText: importedChapter.sourceText,
-            targetLanguage: input.language,
-            learnerLevel: input.level,
-          })
+    if (input.chapters.length === 0)
+      throw new Error('No chapters found in this file.');
+    const existingBook = input.bookId
+      ? (books.find((item) => item.id === input.bookId) ??
+        (selectedBook?.id === input.bookId ? selectedBook : undefined))
+      : undefined;
+    if (input.bookId && !existingBook)
+      throw new Error('The selected book could not be found.');
+    let book = existingBook;
+    if (!book) {
+      book = isSupabaseConfigured
+        ? backendBookToDemo(
+            await createBackendBook({
+              title: input.title,
+              author: input.author,
+              targetLanguage: input.language,
+              learnerLevel: input.level,
+            }),
+            [],
+          )
         : {
-            id: `chapter-${Date.now()}-${nextNumber}`,
-            number: nextNumber,
-            title: importedChapter.title,
-            words: importedChapter.words,
-            sourceText: importedChapter.sourceText,
-            status: 'Not started' as const,
+            id: `book-${Date.now()}`,
+            title: input.title.trim() || 'Imported book',
+            author: input.author.trim() || 'Unknown author',
             language: input.language,
-            learnerLevel: input.level,
+            level: input.level,
+            progress: 0,
+            cover: 'custom',
+            chapters: [],
           };
-      const createdChapter = {
+    }
+    const numberedChapters: DemoBook['chapters'] = [...book.chapters];
+    const importedInputs = input.chapters.map((importedChapter, index) => {
+      const number = nextAvailableChapterNumber(numberedChapters);
+      numberedChapters.push({
+        id: `pending-${index}`,
+        number,
+        title: importedChapter.title,
+        words: importedChapter.words,
+        status: 'Not started',
+        language: input.language,
+        learnerLevel: input.level,
+      });
+      return {
+        bookId: book!.id,
+        number,
+        title: importedChapter.title,
+        sourceText: importedChapter.sourceText,
+        targetLanguage: input.language,
+        learnerLevel: input.level,
+      };
+    });
+    try {
+      const createdChapters = isSupabaseConfigured
+        ? await createBackendChapters(importedInputs)
+        : importedInputs.map((chapter, index) => ({
+            id: `chapter-${Date.now()}-${chapter.number}-${index}`,
+            bookId: chapter.bookId,
+            number: chapter.number,
+            title: chapter.title,
+            sourceText: chapter.sourceText,
+            wordCount: input.chapters[index].words,
+            targetLanguage: chapter.targetLanguage,
+            learnerLevel: chapter.learnerLevel,
+            extractionStatus: 'not_started',
+          }));
+      const mappedChapters = createdChapters.map((chapter) => ({
         id: chapter.id,
         number: chapter.number,
         title: chapter.title,
-        words: 'wordCount' in chapter ? chapter.wordCount : chapter.words,
-        sourceText:
-          'sourceText' in chapter
-            ? chapter.sourceText
-            : importedChapter.sourceText,
+        words: chapter.wordCount,
+        sourceText: chapter.sourceText,
         status: 'Not started' as const,
-        language:
-          'targetLanguage' in chapter ? chapter.targetLanguage : input.language,
-        learnerLevel:
-          'learnerLevel' in chapter ? chapter.learnerLevel : input.level,
+        language: chapter.targetLanguage,
+        learnerLevel: chapter.learnerLevel,
+      }));
+      const nextBook = {
+        ...book,
+        chapters: sortChapterPreviews([...book.chapters, ...mappedChapters]),
       };
-      nextBook = {
-        ...nextBook,
-        chapters: [...nextBook.chapters, createdChapter],
-      };
+      setSelectedBook(nextBook);
+      setBooks((old) =>
+        existingBook
+          ? old.map((item) => (item.id === nextBook.id ? nextBook : item))
+          : [...old, nextBook],
+      );
+      setSelectedChapter(null);
+      setCandidateItems([]);
+      setSelected(new Set());
+      go('book');
+    } catch (error) {
+      if (!existingBook && isSupabaseConfigured)
+        await deleteBackendBook(book.id);
+      throw error;
     }
-
-    setSelectedBook(nextBook);
-    setBooks((old) => [...old, nextBook]);
-    setSelectedChapter(null);
-    setCandidateItems([]);
-    setSelected(new Set());
-    go('book');
   };
   const removeBook = async (book: DemoBook) => {
     if (isSupabaseConfigured) await deleteBackendBook(book.id);
@@ -4122,7 +4283,9 @@ function App() {
       book && book.id === selectedBook?.id ? updateBook(book) : book,
     );
     setBooks((old) =>
-      old.map((book) => (book.id === selectedBook?.id ? updateBook(book) : book)),
+      old.map((book) =>
+        book.id === selectedBook?.id ? updateBook(book) : book,
+      ),
     );
     setSelectedChapter((current) =>
       current?.id === chapter.id ? { ...current, read } : current,
@@ -4139,7 +4302,9 @@ function App() {
       coverImage: uploaded.url,
     };
     setSelectedBook((current) => (current?.id === book.id ? updated : current));
-    setBooks((old) => old.map((item) => (item.id === book.id ? updated : item)));
+    setBooks((old) =>
+      old.map((item) => (item.id === book.id ? updated : item)),
+    );
   };
   const extractChapter = async ({
     chapterId,
@@ -4340,19 +4505,43 @@ function App() {
       return (
         <Library
           go={go}
+          onImportBookFile={() => {
+            setPdfImportBookId(null);
+            go('pdfImport');
+          }}
           books={books}
           selectBook={setSelectedBook}
           userLabel={userLabel}
         />
       );
-    if (view === 'newBook') return <NewBook go={go} onCreate={createBook} />;
+    if (view === 'newBook')
+      return (
+        <NewBook
+          go={go}
+          onImportBookFile={() => {
+            setPdfImportBookId(null);
+            go('pdfImport');
+          }}
+          onCreate={createBook}
+        />
+      );
     if (view === 'pdfImport')
-      return <PdfImportSetup go={go} onImport={importPdfBook} />;
+      return (
+        <PdfImportSetup
+          go={go}
+          book={books.find((book) => book.id === pdfImportBookId) ?? undefined}
+          onImport={importPdfBook}
+        />
+      );
     if (view === 'book')
       return selectedBook ? (
         <BookDetail
           book={selectedBook}
           go={go}
+          onImportBookFile={() => {
+            setPdfImportBookId(selectedBook.id);
+            go('pdfImport');
+          }}
           selectChapter={openChapter}
           onDeleteBook={removeBook}
           onDeleteChapter={removeChapter}
@@ -4375,6 +4564,10 @@ function App() {
       ) : (
         <Library
           go={go}
+          onImportBookFile={() => {
+            setPdfImportBookId(null);
+            go('pdfImport');
+          }}
           books={books}
           selectBook={setSelectedBook}
           userLabel={userLabel}
@@ -4394,6 +4587,10 @@ function App() {
       ) : (
         <Library
           go={go}
+          onImportBookFile={() => {
+            setPdfImportBookId(null);
+            go('pdfImport');
+          }}
           books={books}
           selectBook={setSelectedBook}
           userLabel={userLabel}
@@ -4452,6 +4649,10 @@ function App() {
         <BookDetail
           book={selectedBook}
           go={go}
+          onImportBookFile={() => {
+            setPdfImportBookId(selectedBook.id);
+            go('pdfImport');
+          }}
           selectChapter={openChapter}
           onDeleteBook={removeBook}
           onDeleteChapter={removeChapter}
@@ -4474,6 +4675,10 @@ function App() {
       ) : (
         <Library
           go={go}
+          onImportBookFile={() => {
+            setPdfImportBookId(null);
+            go('pdfImport');
+          }}
           books={books}
           selectBook={setSelectedBook}
           userLabel={userLabel}

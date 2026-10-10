@@ -185,7 +185,8 @@ export async function uploadBackendBookCover(
   if (!allowedTypes.has(file.type)) throw new Error('COVER_UNSUPPORTED_TYPE');
   if (file.size > 5 * 1024 * 1024) throw new Error('COVER_TOO_LARGE');
 
-  const extension = file.type === 'image/jpeg' ? 'jpg' : file.type.split('/')[1];
+  const extension =
+    file.type === 'image/jpeg' ? 'jpg' : file.type.split('/')[1];
   const path = `${user.id}/${bookId}/${crypto.randomUUID()}.${extension}`;
   const { error: uploadError } = await client.storage
     .from('book-covers')
@@ -381,6 +382,37 @@ export async function createBackendChapter(input: {
     .single();
   if (error) throw error;
   return mapChapter(data);
+}
+
+export async function createBackendChapters(
+  inputs: {
+    bookId: string;
+    number: number;
+    title: string;
+    sourceText: string;
+    targetLanguage: string;
+    learnerLevel: string;
+  }[],
+) {
+  if (inputs.length === 0) throw new Error('CHAPTERS_REQUIRED');
+  const { client } = await requireUser();
+  for (const input of inputs) validateChapterWordLimit(input.sourceText);
+  const { data, error } = await client
+    .from('chapters')
+    .insert(
+      inputs.map((input) => ({
+        book_id: input.bookId,
+        chapter_number: input.number,
+        title: input.title.trim(),
+        source_text: input.sourceText,
+        word_count: countWords(input.sourceText),
+        target_language: input.targetLanguage,
+        learner_level: input.learnerLevel,
+      })),
+    )
+    .select();
+  if (error) throw error;
+  return (data ?? []).map((chapter) => mapChapter(chapter));
 }
 
 export async function updateBackendChapter(
